@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "Traktor.Console": {
+      "commandName": "Project",
+      "commandLineArgs": "interval=00:01 --urls \"http://*:5000\""
+    }
+  }
+}

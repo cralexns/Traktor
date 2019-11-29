@@ -1,0 +1,183 @@
+﻿@model List<MediaInfo>
+@using Traktor.Core.Domain;
+@using Traktor.Core.Extensions;
+
+@{
+    ViewData["Title"] = "Home Page";
+}
+
+<style type="text/css">
+    .poster {
+        height: 325px;
+        overflow: hidden;
+        position: relative;
+    }
+
+        .poster img {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            min-height: 100%;
+            width: 100%;
+        }
+
+    .lib-items .card {
+        max-width: 250px;
+    }
+    .lib-items .card-footer
+    {
+        z-index:1;
+    }
+</style>
+
+<div class="text-center">
+
+    <div class="accordion" id="library">
+        @{
+
+            foreach (var grouped in Model.OrderBy(x => x.Media.Release).ThenByDescending(x => x.Media.StateDate).GroupBy(x => x.Media.State).OrderBy(x => x.Key))
+            {
+                <div class="card group">
+                    <div class="card-header">
+                        <h2 class="mb-0">
+                            <button class="btn btn-link" type="button" data-toggle="collapse" data-target="#group_@(grouped.Key.ToString().ToLower())" aria-expanded="true">
+                                @grouped.Key (@grouped.Count())
+                            </button>
+                        </h2>
+                    </div>
+
+                    <div id="group_@(grouped.Key.ToString().ToLower())" class="collapse @(grouped.Key == Media.MediaState.Available ? "show" : "")">
+                        <div class="card-body card-deck justify-content-center lib-items">
+                            @foreach (var indexedItem in (grouped.Key == Media.MediaState.Collected ? grouped.OrderByDescending(x=>x.Media.CollectedAt ?? x.Media.StateDate).Take(20) : grouped.OrderByDescending(x => x.Download != null).ThenBy(x => x.Priority)).Select((e, i) => new { Info = e, Index = i }))
+                            {
+                                var item = indexedItem.Info.Media;
+                                var download = indexedItem.Info.Download;
+                            <div class="card text-left">
+                                <div class="poster">
+                                    @if (!string.IsNullOrEmpty(item.ImageUrl))
+                                    {
+                                        <img src="@item.ImageUrl" />
+                                    }
+                                </div>
+                                <div class="card-body">
+                                    <a class="stretched-link" href="#@Url.Action("Get", "Home", new { dbId = item.DbId })"></a>
+                                    @{
+                                        switch (item)
+                                        {
+                                            case Episode episode:
+                                                <h5 class="card-title">@episode.ShowTitle @($"{episode.Season:0}x{episode.Number:00}")</h5>
+                                                @if (!string.IsNullOrEmpty(episode.Title))
+                                                {
+                                                    <h6 class="card-subtitle">@episode.Title</h6>
+                                                }
+                                                break;
+                                            case Movie movie:
+                                                <h5 class="card-title">@movie.Title (@movie.Year)</h5>
+                                                break;
+                                        }
+                                    }
+                                </div>
+                                @if (item.State == Media.MediaState.Awaiting)
+                                {
+                                    <small class="card-footer text-muted">
+                                        <i class="far fa-clock"></i> Releases <span data-livestamp="@(item.Release.ToUnixTimeSeconds())" title="@item.Release"></span>
+                                    </small>
+                                }
+                                @if (item.State == Media.MediaState.Available)
+                                {
+                                    if (download != null)
+                                    {
+                                        var downloadClass = "";
+                                        var width = Math.Round(download.Progress, 2);
+                                        switch (download.State)
+                                        {
+                                            case Traktor.Core.Services.Downloader.IDownloadInfo.DownloadState.Downloading:
+                                                downloadClass = "bg-success";
+                                                break;
+                                            case Traktor.Core.Services.Downloader.IDownloadInfo.DownloadState.Initializing:
+                                                downloadClass = "bg-info";
+                                                width = 100;
+                                                break;
+                                            case Traktor.Core.Services.Downloader.IDownloadInfo.DownloadState.Stalled:
+                                                downloadClass = "bg-warning";
+                                                break;
+                                            case Traktor.Core.Services.Downloader.IDownloadInfo.DownloadState.Waiting:
+                                                downloadClass = "bg-secondary";
+                                                break;
+                                            case Traktor.Core.Services.Downloader.IDownloadInfo.DownloadState.Failed:
+                                                downloadClass = "bg-danger";
+                                                width = 100;
+                                                break;
+                                        }
+                                        <div class="progress rounded-0">
+                                            <div class="progress-bar @downloadClass" role="progressbar" style="width: @FormattableString.Invariant($"{width}%")" aria-valuenow="50" aria-valuemin="0" aria-valuemax="100">
+
+                                            </div>
+                                        </div>
+                                        <small class="card-footer text-muted d-flex align-items-center">
+                                            <span class="flex-grow-1">
+                                                @switch (download.State)
+                                                {
+                                                    case Traktor.Core.Services.Downloader.IDownloadInfo.DownloadState.Initializing:
+                                                        <span><i class="fas fa-circle-notch"></i>&nbsp;Initializing..</span>
+                                                        break;
+                                                    case Traktor.Core.Services.Downloader.IDownloadInfo.DownloadState.Stalled:
+                                                        <span class="text-warning"><i class="fas fa-exclamation-triangle"></i>&nbsp;Stalled!</span>
+                                                        break;
+                                                    case Traktor.Core.Services.Downloader.IDownloadInfo.DownloadState.Downloading:
+                                                    case Traktor.Core.Services.Downloader.IDownloadInfo.DownloadState.Completed:
+                                                        <span><i class="fas fa-arrow-alt-circle-down"></i>&nbsp;Downloading (@($"{Traktor.Core.Tools.Utility.SizeSuffix(download.DownloadSpeed)}/s"))</span>
+                                                        break;
+                                                    case Traktor.Core.Services.Downloader.IDownloadInfo.DownloadState.Waiting:
+                                                        <span><i class="far fa-hourglass"></i>&nbsp;Waiting</span>
+                                                        break;
+                                                    case Traktor.Core.Services.Downloader.IDownloadInfo.DownloadState.Failed:
+                                                        <span>Failed</span>
+                                                        break;
+                                                }
+                                            </span>
+                                            <span class="badge badge-secondary" title="Priority">@indexedItem.Info.Priority</span>
+                                        </small>
+                                    }
+                                    else if (item.Magnet != null)
+                                    {
+                                        <small class="card-footer text-muted">
+                                            <i class="fas fa-magnet"></i>&nbsp;<a href="@item.Magnet">Magnet found</a>
+                                        </small>
+                                    }
+                                    else
+                                    {
+                                        <small class="card-footer text-muted">
+                                            <i class="fas fa-search"></i>&nbsp;Last scouted <span data-livestamp="@(item.LastScoutedAt.ToUnixTimeSeconds())" title="@item.LastScoutedAt"></span>
+                                        </small>
+                                    }
+                                }
+                                @if (item.State == Media.MediaState.Collected)
+                                {
+                                    <small class="card-footer text-muted">
+                                        <i class="fas fa-box"></i>&nbsp;Collected <span data-livestamp="@(item.CollectedAt.ToUnixTimeSeconds())" title="@item.CollectedAt"></span>
+                                    </small>
+                                }
+                            </div>
+                                @if ((indexedItem.Index + 1) % 7 == 0)
+                                {
+                                    <div class="w-100 mb-2"></div>
+                                }
+                            }
+                        </div>
+                    </div>
+                </div>
+            }
+        }
+    </div>
+</div>
+@section Scripts
+                                        {
+    <script type="text/javascript">
+                                                                            //$(function () {
+                                                                            //    $("#library .group button[data-toggle='collapse']").click(function () {
+                                                                            //        $(this).parents("card-header").next().collapse("toggle");
+                                                                            //    })
+                                                                            //});
+    </script>
+}

@@ -1,0 +1,23 @@
+﻿@model LogModel
+@using Traktor.Core.Tools;
+@{
+    ViewData["Title"] = "Log";
+}
+<h1>@Model.Logs[Model.SelectedLogIndex].Path</h1>
+<table class="table table-sm">
+    <tbody>
+        @foreach (var log in Model.LogLines)
+        {
+        <tr>
+            <td>@log</td>
+        </tr>
+        }
+    </tbody>
+</table>
+
+@section Scripts
+{
+    <script type="text/javascript">
+        window.scrollTo(0,document.body.scrollHeight);
+    </script>
+}

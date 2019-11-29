@@ -1,0 +1,47 @@
+﻿@model List<Traktor.Core.Services.Downloader.IDownloadInfo>
+@using Traktor.Core.Tools;
+@{
+    ViewData["Title"] = "Downloader";
+}
+
+<h1>Downloader</h1>
+@*
+    
+var percentage = Math.Round(downloadInfo.Progress, 2);
+                var downSpeed = Utility.SizeSuffix(downloadInfo.DownloadSpeed);
+                var upSpeed = Utility.SizeSuffix(downloadInfo.UploadSpeed);
+                Console.WriteLine(@$"[{downloadInfos.IndexOf(downloadInfo) + 1}] {downloadInfo.State}: {downloadInfo.Name} - {percentage}%, (▼ {downSpeed}/s) (▲ {upSpeed}/s) [{downloadInfo.Leechs}L|{downloadInfo.Seeds}S|{downloadInfo.Peers}P]");
+*@
+<table class="table">
+    <thead>
+        <tr>
+            <th scope="col">#</th>
+            <th scope="col">Priority</th>
+            <th scope="col">State</th>
+            <th scope="col">Name</th>
+            <th scope="col">%</th>
+            <th scope="col">Down</th>
+            <th scope="col">Up</th>
+            <th scope="col">Leech</th>
+            <th scope="col">Seed</th>
+            <th scope="col">Peers</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var download in Model)
+        {
+        <tr>
+            <th scope="row">@(Model.IndexOf(download) + 1)</th>
+            <th>@download.Priority</th>
+            <td>@download.State</td>
+            <td>@download.Name</td>
+            <td>@(Math.Round(download.Progress, 2))%</td>
+            <td>@(Utility.SizeSuffix(download.DownloadSpeed))/s</td>
+            <td>@(Utility.SizeSuffix(download.UploadSpeed))/s</td>
+            <td>@download.Leechs</td>
+            <td>@download.Seeds</td>
+            <td>@download.Peers</td>
+        </tr>
+        }
+    </tbody>
+</table>
