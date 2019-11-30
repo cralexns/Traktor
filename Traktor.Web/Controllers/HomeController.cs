@@ -68,7 +68,7 @@ namespace Traktor.Web.Controllers
                         Curator.CancelDownload(mediaItem);
                         break;
                     case MediaAction.Scout:
-                        Curator.Scout(mediaItem);
+                        Curator.ForceScout(mediaItem);
                         break;
                     case MediaAction.Reset:
                         Curator.Reset(mediaItem);

@@ -112,9 +112,9 @@ namespace Traktor.Core
             }
         }
 
-        public ScoutResult Scout(Media media, bool raiseEvent = true)
+        public ScoutResult Scout(Media media, bool force = false)
         {
-            var result = GetScoutResult(media);
+            var result = GetScoutResult(media, force);
 
             if (result.Status.Is(ScoutResult.State.BelowReqs, ScoutResult.State.Found) && !media.FirstSpottedAt.HasValue)
             {
@@ -144,17 +144,17 @@ namespace Traktor.Core
             return this.Requirements.FirstOrDefault(x => x.MediaType == media.GetType().Name);
         }
 
-        private ScoutResult GetScoutResult(Media media)
+        private ScoutResult GetScoutResult(Media media, bool force = false)
         {
             var requirements = GetRequirementsForMedia(media);
 
-            if (media.LastScoutedAt.HasValue && requirements.Timeout.HasValue && (media.Release ?? media.StateDate).Add(requirements.Timeout.Value) < DateTime.Now)
+            if (!force && media.LastScoutedAt.HasValue && requirements.Timeout.HasValue && (media.Release ?? media.StateDate).Add(requirements.Timeout.Value) < DateTime.Now)
                 return new ScoutResult { Status = ScoutResult.State.Timeout };
 
-            if (requirements.Delay.HasValue && media.Release?.Add(requirements.Delay.Value) > DateTime.Now)
+            if (!force && requirements.Delay.HasValue && media.Release?.Add(requirements.Delay.Value) > DateTime.Now)
                 return new ScoutResult { Status = ScoutResult.State.Delayed };
 
-            if (requirements.NoResultThrottle.HasValue && media.LastScoutedAt.HasValue && !media.FirstSpottedAt.HasValue && media.LastScoutedAt.Value.Add(requirements.NoResultThrottle.Value) > DateTime.Now)
+            if (!force && requirements.NoResultThrottle.HasValue && media.LastScoutedAt.HasValue && !media.FirstSpottedAt.HasValue && media.LastScoutedAt.Value.Add(requirements.NoResultThrottle.Value) > DateTime.Now)
                 return new ScoutResult { Status = ScoutResult.State.Throttle };
 
             var indexers = GetIndexersForMedia(media);
@@ -196,7 +196,8 @@ namespace Traktor.Core
 
             if (media is Movie movie)
             {
-                if (movie.Release.HasValue && movie.Release.Value.AddMonths(6) < DateTime.Now)
+                // TODO: Think about making this a config or removing it entirely. (The idea is that if the movie was released in teaters a long time ago then regardless of first spotted date we're done waiting)
+                if (movie.Release.HasValue && movie.Release.Value.AddMonths(6) < DateTime.Now) 
                     return false;
 
                 if (!movie.FirstSpottedAt.HasValue && requirements.Patience.HasValue)

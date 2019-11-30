@@ -467,9 +467,9 @@ namespace Traktor.Core
             this.Downloader.Stop(magnet, true, true);
         }
 
-        public Scouter.ScoutResult Scout(Media media)
+        public Scouter.ScoutResult ForceScout(Media media)
         {
-            var results = this.Scouter.Scout(media);
+            var results = this.Scouter.Scout(media, true);
             if (results.Status == Scouter.ScoutResult.State.Found)
             {
                 this.Downloader.Download(media.Magnet, media.GetPriority());

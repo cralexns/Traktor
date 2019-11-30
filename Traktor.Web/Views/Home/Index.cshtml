@@ -173,7 +173,7 @@
                                     @if (item.State == Media.MediaState.Collected)
                                     {
                                         <small class="card-footer text-muted">
-                                            <i class="fas fa-box"></i>&nbsp;Collected <span data-livestamp="@(item.CollectedAt.ToUnixTimeSeconds())" title="@item.CollectedAt"></span>
+                                            <i class="fas fa-box"></i>&nbsp;Collected <span data-livestamp="@((item.CollectedAt ?? item.StateDate).ToUnixTimeSeconds())" title="@(item.CollectedAt ?? item.StateDate)"></span>
                                         </small>
                                     }
                                     @if (item.State == Media.MediaState.Abandoned)
