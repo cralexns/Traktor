@@ -196,7 +196,7 @@ namespace Traktor.Core
 
             if (media is Movie movie)
             {
-                // TODO: Think about making this a config or removing it entirely. (The idea is that if the movie was released in teaters a long time ago then regardless of first spotted date we're done waiting)
+                // TODO: Think about making this a config or removing it entirely. (The idea is that if the movie was released in theaters a long time ago then regardless of first spotted date we're done waiting)
                 if (movie.Release.HasValue && movie.Release.Value.AddMonths(6) < DateTime.Now) 
                     return false;
 

@@ -621,11 +621,14 @@ namespace Traktor.Core.Domain
                 var startDate = DateTime.UtcNow.AddDays(-daysToLookBack);
                 var days = Math.Max(1, Math.Min(maximumDays, daysToLookBack));
 
+                if (startDate.Date != DateTime.Now.Date)
+                    days++;
+
                 if (typeof(T) == typeof(Movie))
-                    foreach (var movie in GetMoviesFromCalendar(startDate, days+1))
+                    foreach (var movie in GetMoviesFromCalendar(startDate, days))
                         yield return movie as T;
                 else if (typeof(T) == typeof(Episode))
-                    foreach (var episode in GetEpisodesFromCalendar(startDate, days+1))
+                    foreach (var episode in GetEpisodesFromCalendar(startDate, days))
                         yield return episode as T;
 
                 daysToLookBack -= maximumDays;
