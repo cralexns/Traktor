@@ -176,7 +176,7 @@ namespace Traktor.Core.Domain
 
                 if (string.IsNullOrEmpty(media.ImageUrl))
                 {
-                    var image = assets.GetAsset(media).Result;
+                    var image = assets.GetAsset(media);
                     if (!string.IsNullOrEmpty(image))
                     {
                         media.ImageUrl = image;

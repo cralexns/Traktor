@@ -15,7 +15,7 @@ namespace Traktor.Core.Services
             omdb = new AsyncOmdbClient(omdbApiKey);
         }
 
-        public async Task<string> GetAsset(Media media)
+        public string GetAsset(Media media)
         {
             var imdb = (media as Episode)?.ShowId.IMDB ?? media.Id?.IMDB;
             if (!string.IsNullOrEmpty(imdb))
