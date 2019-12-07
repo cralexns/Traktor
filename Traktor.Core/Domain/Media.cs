@@ -156,6 +156,10 @@ namespace Traktor.Core.Domain
                     if ((this.Release ?? DateTime.MaxValue) > DateTime.Now)
                         throw new InvalidOperationException("Can't set state to [Available] because Release date is in the future.");
                     break;
+                case MediaState.Registered:
+                    this.Magnets = null;
+                    this.Magnet = null;
+                    break;
             }
 
             this.State = state;
