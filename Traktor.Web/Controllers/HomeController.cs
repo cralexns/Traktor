@@ -47,10 +47,11 @@ namespace Traktor.Web.Controllers
 
         public enum MediaAction
         {
-            Restart,
-            Cancel,
+            RestartDownload,
+            CancelDownload,
             Scout,
-            Reset
+            Reset,
+            Restart
         }
 
         [Route("{dbId}/{actionType}")]
@@ -61,10 +62,10 @@ namespace Traktor.Web.Controllers
             {
                 switch (actionType)
                 {
-                    case MediaAction.Restart:
+                    case MediaAction.RestartDownload:
                         Curator.RestartDownload(mediaItem);
                         break;
-                    case MediaAction.Cancel:
+                    case MediaAction.CancelDownload:
                         Curator.CancelDownload(mediaItem);
                         break;
                     case MediaAction.Scout:
@@ -72,6 +73,9 @@ namespace Traktor.Web.Controllers
                         break;
                     case MediaAction.Reset:
                         Curator.Reset(mediaItem);
+                        break;
+                    case MediaAction.Restart:
+                        Curator.Restart(mediaItem);
                         break;
                 }
             }

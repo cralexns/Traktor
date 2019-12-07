@@ -239,7 +239,9 @@ namespace Traktor.Core.Services.Downloader
 
             public IDownloadInfo.DownloadState State { get; set; }
 
-            public DownloadInfo(Uri magnetUri, TorrentManager torrentManager, int priority, TorrentState? state = null)
+            public DateTime? Completed { get; set; }
+
+            internal DownloadInfo(Uri magnetUri, TorrentManager torrentManager, int priority, TorrentState? state = null)
             {
                 if (MagnetLink.FromUri(magnetUri).InfoHash != torrentManager.InfoHash)
                     throw new InvalidOperationException("TorrentManager doesn't match Magnet");
@@ -451,8 +453,6 @@ namespace Traktor.Core.Services.Downloader
             File.WriteAllBytes(Path.Combine(this.CachePath, "DhtNodes"), nodes);
             File.WriteAllBytes(Path.Combine(this.CachePath, "fastresume.data"), FastResume.Encode());
             Engine.Dispose();
-
-            Thread.Sleep(2000);
         }
 
         public void Dispose()

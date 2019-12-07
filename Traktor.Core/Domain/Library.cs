@@ -91,12 +91,12 @@ namespace Traktor.Core.Domain
                 {
                     // Fetch collection and synchronize with local collection, check for added items and removed items (by comparing every item in trakt collection with local collection)
                     var collectedEpisodes = GetMediaFromTraktCollection<Episode>().ToList();
-                    changes.AddRange(SynchronizeLibrary(collectedEpisodes, x => x.State == Media.MediaState.Collected, x => x.State != Media.MediaState.Collected, UpdateCollected));
+                    changes.AddRange(SynchronizeLibrary(collectedEpisodes, x => x.State == Media.MediaState.Collected, x => x.State != Media.MediaState.Collected && !x.CollectedAt.HasValue, UpdateCollected));
                 }
                 if (activity.movies.collected_at > LastActivityUpdate)
                 {
                     var collectedMovies = GetMediaFromTraktCollection<Movie>().ToList();
-                    changes.AddRange(SynchronizeLibrary(collectedMovies, x => x.State == Media.MediaState.Collected, x => x.State != Media.MediaState.Collected, UpdateCollected));
+                    changes.AddRange(SynchronizeLibrary(collectedMovies, x => x.State == Media.MediaState.Collected, x => x.State != Media.MediaState.Collected && !x.CollectedAt.HasValue, UpdateCollected));
                 }
                 if (activity.movies.watchlisted_at > LastActivityUpdate || activity.shows.watchlisted_at > LastActivityUpdate || activity.seasons.watchlisted_at > LastActivityUpdate || activity.episodes.watchlisted_at > LastActivityUpdate)
                 {
@@ -150,7 +150,7 @@ namespace Traktor.Core.Domain
 
                     if (media is Episode)
                     {
-                        media.Id = traktMedia.Id;
+                        media.Id = media.Id ?? traktMedia.Id;
                         media.Title = traktMedia.Title;
                     }
 
@@ -230,7 +230,7 @@ namespace Traktor.Core.Domain
             existing.WatchlistedAt = null;
             if (existing is Episode)
             {
-                if (update.Id != null)
+                if (update.Id != null && existing.Id == null)
                     existing.Id = update.Id;
 
                 if (!string.IsNullOrEmpty(update.Title))

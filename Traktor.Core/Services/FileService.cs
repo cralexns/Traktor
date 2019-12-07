@@ -45,8 +45,10 @@ namespace Traktor.Core.Services
             {
                 OK,
                 Error,
+                TransientError,
                 MediaNotFound,
-                MediaAlreadyExists
+                MediaAlreadyExists,
+                
             }
             public DeliveryStatus Status { get; set; }
             public string[] Files { get; set; }
@@ -111,6 +113,9 @@ namespace Traktor.Core.Services
 
                 foreach (var file in downloadInfo.Files.Where(x => fileTypesToMove.Contains(Path.GetExtension(x).Substring(1))))
                 {
+                    if (!File.Exists(file))
+                        continue;
+
                     var newPath = Path.Combine(mediaPath, Path.GetFileName(file));
                     var size = new FileInfo(file).Length;
                     for (int i=1; i<=4; i++)
@@ -143,6 +148,11 @@ namespace Traktor.Core.Services
                 foreach (var revert in filesMoved)
                 {
                     File.Move(revert.NewPath, revert.OldPath);
+                }
+
+                if (ex is IOException ioEx && ((ioEx.HResult & 0x0000FFFF) == 32))
+                {
+                    return new DeliveryResult { Status = DeliveryResult.DeliveryStatus.TransientError, Error = ioEx.ToString(), FolderName = physicalName };
                 }
 
                 return new DeliveryResult { Status = DeliveryResult.DeliveryStatus.Error, Error = ex.ToString(), FolderName = physicalName };

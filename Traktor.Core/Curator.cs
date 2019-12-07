@@ -10,6 +10,7 @@ using Traktor.Core.Services.Downloader;
 using Traktor.Core.Services.Indexer;
 using Microsoft.Extensions.Configuration;
 using Traktor.Core.Extensions;
+using System.Collections.Concurrent;
 
 namespace Traktor.Core
 {
@@ -49,7 +50,13 @@ namespace Traktor.Core
                         MinQuality = IndexerResult.VideoQualityLevel.HD_720p,
                         PreferredQuality = IndexerResult.VideoQualityLevel.FHD_1080p,
                         Patience = TimeSpan.FromHours(1),
-                        WaitForRepackOrProper = true
+                        WaitForRepackOrProper = true,
+                        Parameters = new List<Scouter.RequirementConfig.Parameter>
+                        {
+                            new Scouter.RequirementConfig.Parameter { Category = Scouter.RequirementConfig.Parameter.ParameterCategory.Resolution, Definition = new [] { nameof(IndexerResult.VideoQualityLevel.HD_720p) }, Comparison = Scouter.RequirementConfig.Parameter.ParameterComparison.Minimum },
+                            new Scouter.RequirementConfig.Parameter { Category = Scouter.RequirementConfig.Parameter.ParameterCategory.Resolution, Definition = new[] { nameof(IndexerResult.VideoQualityLevel.FHD_1080p) }, Patience = TimeSpan.FromHours(7) },
+                            new Scouter.RequirementConfig.Parameter { Category = Scouter.RequirementConfig.Parameter.ParameterCategory.Tag, Definition = new[] { nameof(IndexerResult.QualityTrait.PROPER), nameof(IndexerResult.QualityTrait.REPACK) }, Patience = TimeSpan.FromHours(3)}
+                        }
                     },
                     new Scouter.RequirementConfig
                     {
@@ -66,7 +73,17 @@ namespace Traktor.Core
                             IndexerResult.QualityTrait.Atmos,
                             IndexerResult.QualityTrait.AC5_1
                         },
-                        PreferredGroups = new[] { "SPARKS" }
+                        PreferredGroups = new[] { "SPARKS" },
+                        Parameters = new List<Scouter.RequirementConfig.Parameter>
+                        {
+                            new Scouter.RequirementConfig.Parameter { Category = Scouter.RequirementConfig.Parameter.ParameterCategory.Resolution, Definition = new[] { nameof(IndexerResult.VideoQualityLevel.FHD_1080p) }, Comparison = Scouter.RequirementConfig.Parameter.ParameterComparison.Minimum },
+                            new Scouter.RequirementConfig.Parameter { Category = Scouter.RequirementConfig.Parameter.ParameterCategory.Resolution, Definition = new[] { nameof(IndexerResult.VideoQualityLevel.FHD_1080p) }, Patience = TimeSpan.FromDays(30) },
+                            new Scouter.RequirementConfig.Parameter { Category = Scouter.RequirementConfig.Parameter.ParameterCategory.Audio, Definition = new [] { nameof(IndexerResult.QualityTrait.AC5_1), nameof(IndexerResult.QualityTrait.DTS), nameof(IndexerResult.QualityTrait.Atmos) }, Patience = TimeSpan.FromDays(30) },
+                            new Scouter.RequirementConfig.Parameter { Category = Scouter.RequirementConfig.Parameter.ParameterCategory.Source, Definition = new [] { nameof(IndexerResult.QualityTrait.BluRay) }, Patience = TimeSpan.FromDays(30) },
+                            new Scouter.RequirementConfig.Parameter { Category = Scouter.RequirementConfig.Parameter.ParameterCategory.Audio, Definition = new [] { nameof(IndexerResult.QualityTrait.AAC)}, Comparison = Scouter.RequirementConfig.Parameter.ParameterComparison.NotEqual },
+                            new Scouter.RequirementConfig.Parameter { Category = Scouter.RequirementConfig.Parameter.ParameterCategory.Group, Definition = new [] { "SPARKS" }, Patience = TimeSpan.Zero },
+                            new Scouter.RequirementConfig.Parameter { Category = Scouter.RequirementConfig.Parameter.ParameterCategory.SizeMb, Definition = new [] { "10000" }, Comparison = Scouter.RequirementConfig.Parameter.ParameterComparison.Minimum }
+                        }
                     }
                 },
                 File = new FileService.FileConfiguration
@@ -241,29 +258,51 @@ namespace Traktor.Core
                     break;
                 case IDownloadInfo.DownloadState.Completed:
                     // Lets pass this information to IFileHandler which will move files into the proper location (Series or Movie folder)
-                    var relatedMedia = this.Library.GetMediaWithMagnet(downloadInfo.MagnetUri);
-                    if (relatedMedia?.Any() ?? false)
-                    {
-                        var deliveryResult = this.File.DeliverFiles(downloadInfo, relatedMedia);
-                        if (deliveryResult.Status == FileService.DeliveryResult.DeliveryStatus.OK)
-                        {
-                            var indexers = this.Scouter.GetIndexersForMedia(relatedMedia.First());
-                            var quality = indexers.Select(x => x.GetQualityLevel(downloadInfo.Name)).OrderByDescending(x => x).FirstOrDefault();
-                            var traits = indexers.Select(x => x.GetTraits(downloadInfo.Name)).OrderByDescending(x => x.Length).FirstOrDefault();
-
-                            var changes = this.Library.SetMediaAsCollected(relatedMedia.ToArray(), IndexerQualityLevelToTraktResolution(quality), IndexerQualityTraitsToTraktAudio(traits));
-                            if (changes.Any())
-                                this.Library.Save();
-
-                            this.Downloader.Stop(downloadInfo.MagnetUri, this.File.Config.CleanUpSource, true);
-                        }
-                    }
-                    else this.Downloader.Stop(downloadInfo.MagnetUri, true, true);
+                    DeliverContent(downloadInfo);
                     break;
                 case IDownloadInfo.DownloadState.Failed:
                     // If it's failed, retry same magnet or maybe try selecting another one if possible.
                     break;
             }
+        }
+
+        private void DeliverContent(IDownloadInfo downloadInfo, int retry = 0)
+        {
+            if (downloadInfo.State != IDownloadInfo.DownloadState.Completed)
+                return;
+
+            var relatedMedia = this.Library.GetMediaWithMagnet(downloadInfo.MagnetUri);
+            lock (GetLockForUri(downloadInfo.MagnetUri))
+            {
+                if (relatedMedia?.Any(x => x.State != Media.MediaState.Collected) ?? false)
+                {
+                    var deliveryResult = this.File.DeliverFiles(downloadInfo, relatedMedia);
+                    if (deliveryResult.Status == FileService.DeliveryResult.DeliveryStatus.OK)
+                    {
+                        var indexers = this.Scouter.GetIndexersForMedia(relatedMedia.First());
+                        var quality = indexers.Select(x => x.GetQualityLevel(downloadInfo.Name)).OrderByDescending(x => x).FirstOrDefault();
+                        var traits = indexers.Select(x => x.GetTraits(downloadInfo.Name)).OrderByDescending(x => x.Length).FirstOrDefault();
+
+                        var changes = this.Library.SetMediaAsCollected(relatedMedia.ToArray(), IndexerQualityLevelToTraktResolution(quality), IndexerQualityTraitsToTraktAudio(traits));
+                        if (changes.Any())
+                            this.Library.Save();
+
+                        this.Downloader.Stop(downloadInfo.MagnetUri, this.File.Config.CleanUpSource, true);
+                    }
+                    else if (deliveryResult.Status == FileService.DeliveryResult.DeliveryStatus.TransientError && retry < 3)
+                    {
+                        retry++;
+                        Task.Delay(TimeSpan.FromMinutes(retry * 5)).ContinueWith((t) => { DeliverContent(downloadInfo, retry); });
+                    }
+                }
+                else this.Downloader.Stop(downloadInfo.MagnetUri, true, true);
+            }
+        }
+
+        private static ConcurrentDictionary<Uri, object> uriLockDictionary = new ConcurrentDictionary<Uri, object>();
+        private object GetLockForUri(Uri uri)
+        {
+            return uriLockDictionary.GetOrAdd(uri, (u) => { return new object(); });
         }
 
         private string IndexerQualityLevelToTraktResolution(IndexerResult.VideoQualityLevel qualityLevel)
@@ -437,15 +476,12 @@ namespace Traktor.Core
                     if (mediaDeadlines.Any())
                         ScoutAndStartDownloads(mediaDeadlines);
                 }
+
                 this.Library.Save();
 
                 /* TODO: 
-                 *  ?
+                 * 1.3 - a way to restart collected media. (if we downloaded low quality as an exampe and we would like to try for a better one)
                  */
-
-                // If we added/updated or removed anything, synchronize file handling service and download service.
-                // 1. On media removed, delete local if we know the path (means we added it)
-                // 2. On media transitioning from available to collected, cancel download/search. 
 
                 return CuratorResult.Updated;
             }
@@ -472,9 +508,24 @@ namespace Traktor.Core
             var results = this.Scouter.Scout(media, true);
             if (results.Status == Scouter.ScoutResult.State.Found)
             {
+                media.AddMagnets(results.Results, true);
                 this.Downloader.Download(media.Magnet, media.GetPriority());
             }
             return results;
+        }
+
+        public void Restart(Media media)
+        {
+            if (media.State == Media.MediaState.Collected)
+            {
+                media.ChangeStateTo(Media.MediaState.Registered);
+                if (media.Id == null)
+                {
+                    // WUT? Well.. EF throws invalid operation exception if we try to add Id to existing media (and Library will if the media doesn't have an Id) - something to do with owned types..
+                    this.Library.Remove(media);
+                    this.Library.Add(media);
+                }
+            }
         }
 
         public void Reset(Media media)

@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Linq;
 using System.Reflection;
 using System.Text;
@@ -15,6 +16,121 @@ namespace Traktor.Core
         public class RequirementConfig
         {
             public string MediaType { get; set; }
+
+            public class Parameter
+            {
+                public enum ParameterCategory
+                {
+                    Resolution,
+                    Audio,
+                    Source,
+                    Tag,
+                    Group,
+                    SizeMb,
+                    FreeText
+                }
+
+                public enum ParameterComparison
+                {
+                    Equal,
+                    NotEqual,
+                    Minimum,
+                    Maximum
+                }
+
+                public ParameterCategory Category { get; set; }
+
+                public ParameterComparison Comparison { get; set; } = ParameterComparison.Equal;
+                public string[] Definition { get; set; }  
+                public TimeSpan? Patience { get; set; }
+                public int Weight { get; set; } = 1;
+
+                public IEnumerable<T> GetEnum<T>() where T : struct, IComparable
+                {
+                    foreach (var def in this.Definition)
+                    {
+                        yield return GetEnum<T>(def as string);
+                    }
+                }
+
+                private T GetEnum<T>(string definition) where T : struct, IComparable
+                {
+                    if (Enum.TryParse<T>(definition, true, out T resolution))
+                    {
+                        return resolution;
+                    }
+                    throw new NotSupportedException($"Def: {Definition} is not valid in {Category}");
+                }
+
+                private bool Compare(IComparable value1, IComparable value2)
+                {
+                    switch (this.Comparison)
+                    {
+                        case ParameterComparison.Equal:
+                            return value1.Equals(value2);
+                        case ParameterComparison.NotEqual:
+                            return !value1.Equals(value2);
+                        case ParameterComparison.Minimum:
+                            return value1.CompareTo(value2) >= 0;
+                        case ParameterComparison.Maximum:
+                            return value1.CompareTo(value2) <= 0;
+                    }
+                    return false;
+                }
+
+                private bool IsMatch(string def, IndexerResult result)
+                {
+                    switch (this.Category)
+                    {
+                        case ParameterCategory.Resolution:
+                            return Compare(result.VideoQuality, GetEnum<IndexerResult.VideoQualityLevel>(def));
+                        case ParameterCategory.Audio:
+                        case ParameterCategory.Source:
+                        case ParameterCategory.Tag:
+                            var req = GetEnum<IndexerResult.QualityTrait>(def);
+                            foreach (var trait in result.Traits)
+                            {
+                                if (Compare(trait, req))
+                                    return true;
+                            }
+                            return false;
+                        case ParameterCategory.Group:
+                            return Compare(result.Group, def as string);
+                        case ParameterCategory.SizeMb:
+                            return Compare(result.SizeBytes, def.ToLong() ?? 0 * 1024 * 1024);
+                        case ParameterCategory.FreeText:
+                            return result.Title.Contains(def as string);
+                    }
+                    return false;
+                }
+
+                public int CalculateScore(IndexerResult result)
+                {
+                    foreach (var def in this.Definition)
+                    {
+                        if (IsMatch(def, result))
+                        {
+                            return this.Weight;
+                        }
+                    }
+
+                    return 0;
+                }
+
+                private string GetEnumDescription(Enum value)
+                {
+                    // Get the Description attribute value for the enum value
+                    FieldInfo fi = value.GetType().GetField(value.ToString());
+                    DescriptionAttribute[] attributes = (DescriptionAttribute[])fi.GetCustomAttributes(typeof(DescriptionAttribute), false);
+
+                    if (attributes.Length > 0)
+                        return attributes[0].Description;
+                    else
+                        return value.ToString();
+                }
+            }
+
+            public List<Parameter> Parameters { get; set; }
 
             /// <summary>
             /// Absolute minimum quality, will never allow lower qualities.
@@ -55,7 +171,7 @@ namespace Traktor.Core
             /// </summary>
             public TimeSpan? NoResultThrottle { get; set; }
 
-            
+
         }
 
         public RequirementConfig[] Requirements { get; private set; }
@@ -68,7 +184,7 @@ namespace Traktor.Core
             this.Requirements = requirements;
 
             this.Indexers = Assembly.GetExecutingAssembly().GetTypes().Where(x => typeof(IIndexer).IsAssignableFrom(x) && !x.IsInterface && !x.IsAbstract)
-                .Select(x=>Activator.CreateInstance(x) as IIndexer).ToList();
+                .Select(x => Activator.CreateInstance(x) as IIndexer).ToList();
         }
 
         public class ScoutResult
@@ -158,25 +274,62 @@ namespace Traktor.Core
                 return new ScoutResult { Status = ScoutResult.State.Throttle };
 
             var indexers = GetIndexersForMedia(media);
-            var minScore = GetRequiredScore(media, requirements);
-            var maximumScore = GetRequiredScore(media, requirements, true);
+            //var minScore = GetRequiredScore(media, requirements);
+            //var maximumScore = GetRequiredScore(media, requirements, true);
 
-            var results = new List<(IndexerResult Result, int Score)>();
+            var results = new List<(IndexerResult Result, (bool Passed, int Score, int MaximumScore) Evaluation)>();
             for (var i = 0; i < indexers.Count; i++)
             {
-                results = results.Concat(indexers[i].FindResultsFor(media).Select((x) => (Result: x, Score: MediaRequirementScore(media, x, requirements))))
-                    .OrderByDescending(x => x.Score).ThenByDescending(x => indexers[i].Priority).ThenByDescending(x => x.Result.Seeds + x.Result.Peers).ToList();
+                //results = results.Concat(indexers[i].FindResultsFor(media).Select((x) => (Result: x, Score: MediaRequirementScore(media, x, requirements))))
+                //    .OrderByDescending(x => x.Score).ThenByDescending(x => indexers[i].Priority).ThenByDescending(x => x.Result.Seeds + x.Result.Peers).ToList();
 
-                if (results.Any() && results.Max(x => x.Score) >= maximumScore)
+                results = results.Concat(indexers[i].FindResultsFor(media).Select((x) => (Result: x, Evaluation: EvaluateResult(x, media, requirements))))
+                    .OrderByDescending(x => x.Evaluation.Score).ThenByDescending(x => indexers[i].Priority).ThenByDescending(x => x.Result.Seeds + x.Result.Peers).ToList();
+
+                if (results.Any() && results.Any(x=>x.Evaluation.Passed && x.Evaluation.Score == x.Evaluation.MaximumScore))
                 {
                     return new ScoutResult(results.Select(x => x.Result)) { Status = ScoutResult.State.Found };
                 }
             }
 
             if (results.Any())
-                return new ScoutResult(results.Select(x => x.Result)) { Status = results.Max(x=>x.Score) >= minScore ? ScoutResult.State.Found : ScoutResult.State.BelowReqs };
+                return new ScoutResult(results.Select(x => x.Result)) { Status = results.Any(x=>x.Evaluation.Passed) ? ScoutResult.State.Found : ScoutResult.State.BelowReqs };
 
             return new ScoutResult { Status = ScoutResult.State.NotFound };
+        }
+
+        private (bool Passed, int Score, int MaximumScore) EvaluateResult(IndexerResult result, Media media, RequirementConfig requirement)
+        {
+            bool isDeadline = requirement.ReleaseDateDeadlineTime.HasValue && DateTime.Now.Date == media.Release?.Date && DateTime.Now.TimeOfDay >= requirement.ReleaseDateDeadlineTime;
+            var patienceDate = GetPatienceCalculationDate(media);
+
+            var total = 0;
+            var passed = true;
+            foreach (var parameter in requirement.Parameters)
+            {
+                bool canDisqualify = !parameter.Patience.HasValue || (!isDeadline && patienceDate.Add(parameter.Patience.Value) >= DateTime.Now);
+                int score = parameter.CalculateScore(result);
+
+                total += score;
+                if (canDisqualify && score <= 0)
+                    passed = false;
+            }
+
+            return (passed, total, requirement.Parameters.Sum(x=>x.Weight));
+        }
+
+        private DateTime GetPatienceCalculationDate(Media media)
+        {
+            if (media is Movie movie)
+            {
+                // TODO: Think about making this a config or removing it entirely. (The idea is that if the movie was released in theaters a long time ago then regardless of first spotted date we're done waiting)
+                if (movie.Release.HasValue && movie.Release.Value.AddMonths(6) < DateTime.Now)
+                    return movie.Release.Value;
+
+                return movie.FirstSpottedAt ?? DateTime.Now;
+            }
+
+            return media.Release ?? media.StateDate;
         }
 
         private int GetRequiredScore(Media media, RequirementConfig requirements, bool forcePatient = false)
@@ -185,7 +338,7 @@ namespace Traktor.Core
             {
                 var groupTraitCount = requirements.PreferredGroups.Count() + requirements.PreferredTraits.Count();
                 return (2 + groupTraitCount + Math.Min(2, groupTraitCount)) * (requirements.WaitForRepackOrProper ? 2 : 1);
-            }  
+            }
             return 1;
         }
 
@@ -197,7 +350,7 @@ namespace Traktor.Core
             if (media is Movie movie)
             {
                 // TODO: Think about making this a config or removing it entirely. (The idea is that if the movie was released in theaters a long time ago then regardless of first spotted date we're done waiting)
-                if (movie.Release.HasValue && movie.Release.Value.AddMonths(6) < DateTime.Now) 
+                if (movie.Release.HasValue && movie.Release.Value.AddMonths(6) < DateTime.Now)
                     return false;
 
                 if (!movie.FirstSpottedAt.HasValue && requirements.Patience.HasValue)

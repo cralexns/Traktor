@@ -1,6 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel;
+using System.Globalization;
 using System.Linq;
+using System.Reflection;
+using System.Runtime.Serialization;
 using System.Text;
 using System.Text.RegularExpressions;
 using Traktor.Core.Extensions;
@@ -147,8 +151,11 @@ namespace Traktor.Core.Services.Indexer
         public enum VideoQualityLevel
         {
             Unknown = 0,
+            [Description("720p")]
             HD_720p = 1,
+            [Description("1080p")]
             FHD_1080p = 2,
+            [Description("4K")]
             UHD_2160p = 3
         }
         public VideoQualityLevel VideoQuality { get; private set; }
@@ -164,16 +171,27 @@ namespace Traktor.Core.Services.Indexer
 
         public enum QualityTrait
         {
+            [Description("AAC2.0")]
             AAC,
+            [Description("Blu-ray")]
             BluRay,
+            [Description("DTS")]
             DTS,
+            [Description("DTS-HD")]
             DTS_HD,
+            [Description("DTS-HD Master Audio")]
             DTS_HD_MA,
+            [Description("AC 7.1")]
             AC7_1,
+            [Description("AC 5.1")]
             AC5_1,
+            [Description("Dolby Atmos")]
             Atmos,
+            [Description("WebDL")]
             WEB_DL,
+            [Description("PROPER")]
             PROPER,
+            [Description("REPACK")]
             REPACK
         }
 
@@ -185,6 +203,18 @@ namespace Traktor.Core.Services.Indexer
             cloned.Episode = number;
 
             return cloned;
+        }
+
+        public static string GetEnumDescription(Enum value)
+        {
+            // Get the Description attribute value for the enum value
+            FieldInfo fi = value.GetType().GetField(value.ToString());
+            DescriptionAttribute[] attributes = (DescriptionAttribute[])fi.GetCustomAttributes(typeof(DescriptionAttribute), false);
+
+            if (attributes.Length > 0)
+                return attributes[0].Description;
+            else
+                return value.ToString();
         }
     }
 }
