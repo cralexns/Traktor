@@ -133,28 +133,9 @@ namespace Traktor.Core
             public List<Parameter> Parameters { get; set; }
 
             /// <summary>
-            /// Absolute minimum quality, will never allow lower qualities.
-            /// </summary>
-            public IndexerResult.VideoQualityLevel MinQuality { get; set; }
-
-            /// <summary>
-            /// Maximum time to wait once available for preferences like PreferredQuality, PreferredTraits (at least one), PreferredGroups and PROPER/REPACKs.
-            /// </summary>
-            public TimeSpan? Patience { get; set; }
-
-            /// <summary>
             /// On release day, never wait longer than this time, overrules patience setting but only on release date.
             /// </summary>
             public TimeSpan? ReleaseDateDeadlineTime { get; set; }
-
-            public IndexerResult.VideoQualityLevel PreferredQuality { get; set; }
-            public IndexerResult.QualityTrait[] PreferredTraits { get; set; } = new IndexerResult.QualityTrait[0];
-            public string[] PreferredGroups { get; set; } = new string[0];
-
-            /// <summary>
-            /// While patient specify if Scouter should wait for a PROPER / REPACK before picking a result.
-            /// </summary>
-            public bool WaitForRepackOrProper { get; set; }
 
             /// <summary>
             /// Minimum time to wait from release before delivering candidates.
@@ -322,7 +303,7 @@ namespace Traktor.Core
         {
             if (media is Movie movie)
             {
-                // TODO: Think about making this a config or removing it entirely. (The idea is that if the movie was released in theaters a long time ago then regardless of first spotted date we're done waiting)
+                // TODO: Think about making this a config or removing it entirely. (The idea is that if the movie was released a long time ago then regardless of first spotted date we're done waiting)
                 if (movie.Release.HasValue && movie.Release.Value.AddMonths(6) < DateTime.Now)
                     return movie.Release.Value;
 
@@ -330,65 +311,6 @@ namespace Traktor.Core
             }
 
             return media.Release ?? media.StateDate;
-        }
-
-        private int GetRequiredScore(Media media, RequirementConfig requirements, bool forcePatient = false)
-        {
-            if (forcePatient || HasPatienceForMedia(media, requirements))
-            {
-                var groupTraitCount = requirements.PreferredGroups.Count() + requirements.PreferredTraits.Count();
-                return (2 + groupTraitCount + Math.Min(2, groupTraitCount)) * (requirements.WaitForRepackOrProper ? 2 : 1);
-            }
-            return 1;
-        }
-
-        private bool HasPatienceForMedia(Media media, RequirementConfig requirements)
-        {
-            if (requirements.ReleaseDateDeadlineTime.HasValue && DateTime.Now.Date == media.Release?.Date && DateTime.Now.TimeOfDay >= requirements.ReleaseDateDeadlineTime)
-                return false;
-
-            if (media is Movie movie)
-            {
-                // TODO: Think about making this a config or removing it entirely. (The idea is that if the movie was released in theaters a long time ago then regardless of first spotted date we're done waiting)
-                if (movie.Release.HasValue && movie.Release.Value.AddMonths(6) < DateTime.Now)
-                    return false;
-
-                if (!movie.FirstSpottedAt.HasValue && requirements.Patience.HasValue)
-                    return true;
-
-                return movie.FirstSpottedAt.Value.Add(requirements.Patience ?? TimeSpan.FromSeconds(0)) > DateTime.Now;
-            }
-
-            if (media is Episode episode)
-            {
-                return (episode.Release ?? episode.StateDate).Add(requirements.Patience ?? TimeSpan.FromSeconds(0)) > DateTime.Now;
-            }
-
-            return false;
-        }
-
-        private int MediaRequirementScore(Media media, IndexerResult result, RequirementConfig requirements)
-        {
-            var score = 0;
-            if (result.VideoQuality < requirements.MinQuality)
-                return 0;
-
-            if (result.VideoQuality >= requirements.MinQuality)
-                score += 1;
-
-            if (result.VideoQuality == requirements.PreferredQuality)
-                score += 1 + requirements.PreferredGroups.Count() + requirements.PreferredTraits.Count();
-
-            if (requirements.PreferredGroups.Any(x => result.Group == x))
-                score += 1;
-
-            if (requirements.PreferredTraits.Any(x => result.Traits.Contains(x)))
-                score += 1;
-
-            if (requirements.PreferredTraits.Any(x => x == IndexerResult.QualityTrait.PROPER || x == IndexerResult.QualityTrait.REPACK))
-                score += score * 2;
-
-            return score;
         }
 
         public List<IIndexer> GetIndexersForMedia(Media media)

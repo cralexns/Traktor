@@ -47,10 +47,6 @@ namespace Traktor.Core
                         MediaType = nameof(Episode),
                         Delay = null,
                         Timeout = TimeSpan.FromDays(7),
-                        MinQuality = IndexerResult.VideoQualityLevel.HD_720p,
-                        PreferredQuality = IndexerResult.VideoQualityLevel.FHD_1080p,
-                        Patience = TimeSpan.FromHours(1),
-                        WaitForRepackOrProper = true,
                         Parameters = new List<Scouter.RequirementConfig.Parameter>
                         {
                             new Scouter.RequirementConfig.Parameter { Category = Scouter.RequirementConfig.Parameter.ParameterCategory.Resolution, Definition = new [] { nameof(IndexerResult.VideoQualityLevel.HD_720p) }, Comparison = Scouter.RequirementConfig.Parameter.ParameterComparison.Minimum },
@@ -64,16 +60,6 @@ namespace Traktor.Core
                         Delay = TimeSpan.FromDays(1),
                         Timeout = null,
                         NoResultThrottle = TimeSpan.FromDays(1),
-                        MinQuality = IndexerResult.VideoQualityLevel.FHD_1080p,
-                        PreferredQuality = IndexerResult.VideoQualityLevel.FHD_1080p,
-                        Patience = TimeSpan.FromDays(30),
-                        PreferredTraits = new[] {
-                            IndexerResult.QualityTrait.DTS,
-                            IndexerResult.QualityTrait.BluRay,
-                            IndexerResult.QualityTrait.Atmos,
-                            IndexerResult.QualityTrait.AC5_1
-                        },
-                        PreferredGroups = new[] { "SPARKS" },
                         Parameters = new List<Scouter.RequirementConfig.Parameter>
                         {
                             new Scouter.RequirementConfig.Parameter { Category = Scouter.RequirementConfig.Parameter.ParameterCategory.Resolution, Definition = new[] { nameof(IndexerResult.VideoQualityLevel.FHD_1080p) }, Comparison = Scouter.RequirementConfig.Parameter.ParameterComparison.Minimum },
