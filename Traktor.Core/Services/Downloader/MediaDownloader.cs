@@ -98,10 +98,10 @@ namespace Traktor.Core.Services.Downloader
 
             lock (listLock)
             {
-                torrentManager = new PrioritizedTorrentManager(priority, magnetLink, Path.Combine(this.DownloadPath, magnetLink.Name), new TorrentSettings(), Path.Combine(this.CachePath, $"{magnetLink.InfoHash.ToHex()}.torrent"));
-
                 if (this.Torrents.ContainsKey(magnetUri))
                     return;
+
+                torrentManager = new PrioritizedTorrentManager(priority, magnetLink, Path.Combine(this.DownloadPath, magnetLink.Name), new TorrentSettings(), Path.Combine(this.CachePath, $"{magnetLink.InfoHash.ToHex()}.torrent"));
 
                 this.Torrents.Add(magnetUri, torrentManager);
             }
@@ -348,9 +348,6 @@ namespace Traktor.Core.Services.Downloader
                 torrentManager.StopAsync().Wait();
                 Engine.Unregister(torrentManager).Wait();
                 ManageActiveDownloads();
-
-                // Make sure torrent file streams are flushed.
-                Engine.DiskManager.FlushAsync(torrentManager.Torrent).Wait();
             }
 
             if (deleteFiles)

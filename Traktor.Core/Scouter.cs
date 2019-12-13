@@ -97,7 +97,7 @@ namespace Traktor.Core
                         case ParameterCategory.Group:
                             return Compare(result.Group, def as string);
                         case ParameterCategory.SizeMb:
-                            return Compare(result.SizeBytes, def.ToLong() ?? 0 * 1024 * 1024);
+                            return Compare(result.SizeBytes, ((def.ToLong() ?? 0) * 1024 * 1024));
                         case ParameterCategory.FreeText:
                             return result.Title.Contains(def as string);
                     }
@@ -206,6 +206,12 @@ namespace Traktor.Core
                     this.Status = State.Found;
                     this.Results = results.Select(x => new Magnet(x)).ToList();
                 }
+            }
+
+            public void RemoveBannedLink(Uri link)
+            {
+                if (link != null)
+                    this.Results = this.Results.Where(x => x.Link != link).ToList();
             }
         }
 

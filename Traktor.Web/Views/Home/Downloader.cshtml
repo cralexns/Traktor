@@ -20,6 +20,7 @@ var percentage = Math.Round(downloadInfo.Progress, 2);
             <th scope="col">State</th>
             <th scope="col">Name</th>
             <th scope="col">%</th>
+            <th scope="col">Size</th>
             <th scope="col">Down</th>
             <th scope="col">Up</th>
             <th scope="col">Leech</th>
@@ -36,6 +37,7 @@ var percentage = Math.Round(downloadInfo.Progress, 2);
             <td>@download.State</td>
             <td>@download.Name</td>
             <td>@(Math.Round(download.Progress, 2))%</td>
+            <td>@(Utility.SizeSuffix(download.Size))</td>
             <td>@(Utility.SizeSuffix(download.DownloadSpeed))/s</td>
             <td>@(Utility.SizeSuffix(download.UploadSpeed))/s</td>
             <td>@download.Leechs</td>

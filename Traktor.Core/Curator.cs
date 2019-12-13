@@ -29,6 +29,7 @@ namespace Traktor.Core
             public int MaximumCalendarLookbackDays { get; set; }
             public bool IgnoreSpecialSeasons { get; set; }
             public bool ExcludeUnwatchedShowsFromCalendar { get; set; }
+            public bool EnsureDownloadIntegrity { get; set; }
 
             public static CuratorConfiguration Default => new CuratorConfiguration
             {
@@ -65,7 +66,7 @@ namespace Traktor.Core
                             new Scouter.RequirementConfig.Parameter { Category = Scouter.RequirementConfig.Parameter.ParameterCategory.Resolution, Definition = new[] { nameof(IndexerResult.VideoQualityLevel.FHD_1080p) }, Comparison = Scouter.RequirementConfig.Parameter.ParameterComparison.Minimum },
                             new Scouter.RequirementConfig.Parameter { Category = Scouter.RequirementConfig.Parameter.ParameterCategory.Resolution, Definition = new[] { nameof(IndexerResult.VideoQualityLevel.FHD_1080p) }, Patience = TimeSpan.FromDays(30) },
                             new Scouter.RequirementConfig.Parameter { Category = Scouter.RequirementConfig.Parameter.ParameterCategory.Audio, Definition = new [] { nameof(IndexerResult.QualityTrait.AC5_1), nameof(IndexerResult.QualityTrait.DTS), nameof(IndexerResult.QualityTrait.Atmos) }, Patience = TimeSpan.FromDays(30) },
-                            new Scouter.RequirementConfig.Parameter { Category = Scouter.RequirementConfig.Parameter.ParameterCategory.Source, Definition = new [] { nameof(IndexerResult.QualityTrait.BluRay) }, Patience = TimeSpan.FromDays(30) },
+                            new Scouter.RequirementConfig.Parameter { Category = Scouter.RequirementConfig.Parameter.ParameterCategory.Source, Definition = new [] { nameof(IndexerResult.QualityTrait.BluRay) }, Patience = TimeSpan.Zero },
                             new Scouter.RequirementConfig.Parameter { Category = Scouter.RequirementConfig.Parameter.ParameterCategory.Audio, Definition = new [] { nameof(IndexerResult.QualityTrait.AAC)}, Comparison = Scouter.RequirementConfig.Parameter.ParameterComparison.NotEqual },
                             new Scouter.RequirementConfig.Parameter { Category = Scouter.RequirementConfig.Parameter.ParameterCategory.Group, Definition = new [] { "SPARKS" }, Patience = TimeSpan.Zero },
                             new Scouter.RequirementConfig.Parameter { Category = Scouter.RequirementConfig.Parameter.ParameterCategory.SizeMb, Definition = new [] { "10000" }, Comparison = Scouter.RequirementConfig.Parameter.ParameterComparison.Minimum }
@@ -370,7 +371,7 @@ namespace Traktor.Core
             }
         }
 
-        private void ScoutAndStartDownloads(List<Media> mediaToScout = null)
+        private void ScoutAndStartDownloads(List<Media> mediaToScout = null, Uri bannedUri = null)
         {
             this.lastScoutDate = DateTime.Now;
 
@@ -382,6 +383,8 @@ namespace Traktor.Core
                 foreach (var episode in season.HasMagnet(false))
                 {
                     var scoutResult = this.Scouter.Scout(episode);
+                    scoutResult.RemoveBannedLink(bannedUri);
+
                     switch (scoutResult.Status)
                     {
                         case Scouter.ScoutResult.State.NotFound:
@@ -417,6 +420,8 @@ namespace Traktor.Core
             foreach (var media in mediaToScout.OfType<Movie>().State(Media.MediaState.Available).HasMagnet(false))
             {
                 var scoutResult = this.Scouter.Scout(media);
+                scoutResult.RemoveBannedLink(bannedUri);
+
                 switch (scoutResult.Status)
                 {
                     case Scouter.ScoutResult.State.Found:
@@ -463,17 +468,81 @@ namespace Traktor.Core
                         ScoutAndStartDownloads(mediaDeadlines);
                 }
 
-                this.Library.Save();
+                if (this.Config.EnsureDownloadIntegrity)
+                    EnsureDownloadIntegrify();
 
-                /* TODO: 
-                 * 1.3 - a way to restart collected media. (if we downloaded low quality as an exampe and we would like to try for a better one)
-                 */
+                this.Library.Save();
 
                 return CuratorResult.Updated;
             }
             finally
             {
                 System.Threading.Monitor.Exit(updateLock);
+            }
+        }
+
+        private class DownloadHistory
+        {
+            public long Size { get; set; }
+            public IDownloadInfo.DownloadState State { get; set; }
+            public DateTime Updated { get; set; }
+            public bool RestartedOnce { get; set; }
+        }
+
+        private ConcurrentDictionary<Uri, DownloadHistory> dlhistory = new ConcurrentDictionary<Uri, DownloadHistory>();
+        private void EnsureDownloadIntegrify()
+        {
+            var allDownloads = this.Downloader.All();
+            var activeDownloads = allDownloads.Count(x => x.State == IDownloadInfo.DownloadState.Initializing || x.State == IDownloadInfo.DownloadState.Downloading);
+            foreach (var dli in allDownloads)
+            {
+                var isBroken = false;
+                var history = dlhistory.GetOrAdd(dli.MagnetUri, new DownloadHistory { Size = dli.Size, Updated = DateTime.Now, State = dli.State });
+
+                if (dli.Size != history.Size || dli.State != history.State)
+                {
+                    history.Size = dli.Size;
+                    history.State = dli.State;
+                    history.Updated = DateTime.Now;
+                }
+                else if (history.Updated.AddMinutes(15) < DateTime.Now)
+                {
+                    switch (dli.State)
+                    {
+                        case IDownloadInfo.DownloadState.Stalled:
+                            isBroken = (history.Updated.AddHours(1) < DateTime.Now && dli.Peers == 0 && dli.Seeds == 0);
+                            break;
+                        case IDownloadInfo.DownloadState.Waiting:
+                            isBroken = activeDownloads < this.Config.Download.MaxConcurrent || this.Config.Download.MaxConcurrent == 0;
+                            break;
+                        case IDownloadInfo.DownloadState.Failed:
+                        case IDownloadInfo.DownloadState.Downloading:
+                        case IDownloadInfo.DownloadState.Initializing:
+                            isBroken = true;
+                            break;
+                    }
+                }
+
+                if (isBroken)
+                {
+                    if (!history.RestartedOnce)
+                    {
+                        this.Downloader.Restart(dli.MagnetUri);
+                        history.RestartedOnce = true;
+                        history.Updated = DateTime.Now;
+                    }
+                    else
+                    {
+                        dlhistory.Remove(dli.MagnetUri, out var discard);
+                        this.Downloader.Stop(dli.MagnetUri, true, true);
+
+                        var affectedMedia = this.Library.GetMediaWithMagnet(dli.MagnetUri);
+                        if (affectedMedia.Any())
+                        {
+                            ScoutAndStartDownloads(affectedMedia, dli.MagnetUri);
+                        }
+                    }
+                }
             }
         }
 
@@ -489,15 +558,9 @@ namespace Traktor.Core
             this.Downloader.Stop(magnet, true, true);
         }
 
-        public Scouter.ScoutResult ForceScout(Media media)
+        public void ForceScout(Media media)
         {
-            var results = this.Scouter.Scout(media, true);
-            if (results.Status == Scouter.ScoutResult.State.Found)
-            {
-                media.AddMagnets(results.Results, true);
-                this.Downloader.Download(media.Magnet, media.GetPriority());
-            }
-            return results;
+            this.ScoutAndStartDownloads(new List<Media>() { media });
         }
 
         public void Restart(Media media)

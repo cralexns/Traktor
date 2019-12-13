@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 using Traktor.Core.Extensions;
@@ -41,47 +42,44 @@ namespace Traktor.Core.Services.Indexer
         public IndexerResult.QualityTrait[] GetTraits(string title)
         {
             var traits = new List<IndexerResult.QualityTrait>();
-            var matches = TraitRegex.Match(title);
-            if (matches.Success)
+            var matches = TraitRegex.Matches(title).Select(x=>x.Groups["trait"].Value.ToLower());
+            foreach (var capture in matches)
             {
-                foreach (var capture in matches.Groups["trait"].Captures)
+                switch (capture)
                 {
-                    switch (capture.ToString().ToLower())
-                    {
-                        case "bluray":
-                            traits.Add(IndexerResult.QualityTrait.BluRay);
-                            break;
-                        case "dts-hd.ma":
-                            traits.Add(IndexerResult.QualityTrait.DTS_HD_MA);
-                            break;
-                        case "dts_hd":
-                            traits.Add(IndexerResult.QualityTrait.DTS_HD);
-                            break;
-                        case "dts":
-                            traits.Add(IndexerResult.QualityTrait.DTS);
-                            break;
-                        case "atmos":
-                            traits.Add(IndexerResult.QualityTrait.Atmos);
-                            break;
-                        case "5.1":
-                            traits.Add(IndexerResult.QualityTrait.AC5_1);
-                            break;
-                        case "7.1":
-                            traits.Add(IndexerResult.QualityTrait.AC7_1);
-                            break;
-                        case "aac":
-                            traits.Add(IndexerResult.QualityTrait.AAC);
-                            break;
-                        case "web-dl":
-                            traits.Add(IndexerResult.QualityTrait.WEB_DL);
-                            break;
-                        case "proper":
-                            traits.Add(IndexerResult.QualityTrait.PROPER);
-                            break;
-                        case "repack":
-                            traits.Add(IndexerResult.QualityTrait.REPACK);
-                            break;
-                    }
+                    case "bluray":
+                        traits.Add(IndexerResult.QualityTrait.BluRay);
+                        break;
+                    case "dts-hd.ma":
+                        traits.Add(IndexerResult.QualityTrait.DTS_HD_MA);
+                        break;
+                    case "dts_hd":
+                        traits.Add(IndexerResult.QualityTrait.DTS_HD);
+                        break;
+                    case "dts":
+                        traits.Add(IndexerResult.QualityTrait.DTS);
+                        break;
+                    case "atmos":
+                        traits.Add(IndexerResult.QualityTrait.Atmos);
+                        break;
+                    case var a when a.EndsWith("5.1"):
+                        traits.Add(IndexerResult.QualityTrait.AC5_1);
+                        break;
+                    case var a when a.EndsWith("7.1"):
+                        traits.Add(IndexerResult.QualityTrait.AC7_1);
+                        break;
+                    case "aac":
+                        traits.Add(IndexerResult.QualityTrait.AAC);
+                        break;
+                    case "web-dl":
+                        traits.Add(IndexerResult.QualityTrait.WEB_DL);
+                        break;
+                    case "proper":
+                        traits.Add(IndexerResult.QualityTrait.PROPER);
+                        break;
+                    case "repack":
+                        traits.Add(IndexerResult.QualityTrait.REPACK);
+                        break;
                 }
             }
             return traits.ToArray();
