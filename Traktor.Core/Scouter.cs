@@ -185,12 +185,14 @@ namespace Traktor.Core
                 public string Title { get; set; }
                 public bool IsFullSeason { get; set; }
                 public Uri Link { get; set; }
+                public int Score { get; set; }
 
-                public Magnet(IndexerResult result)
+                public Magnet(IndexerResult result, int score)
                 {
                     this.Title = result.Title;
                     this.IsFullSeason = result.IsFullSeason;
                     this.Link = new Uri(result.Magnet);
+                    this.Score = score;
                 }
             }
 
@@ -198,13 +200,13 @@ namespace Traktor.Core
             public IReadOnlyList<Magnet> Results { get; set; } = new List<Magnet>();
             public DateTime Date { get; set; } = DateTime.Now;
 
-            public ScoutResult(IEnumerable<IndexerResult> results = null)
+            public ScoutResult(IEnumerable<(IndexerResult, int)> results = null)
             {
                 this.Date = DateTime.Now;
                 if (results != null)
                 {
                     this.Status = State.Found;
-                    this.Results = results.Select(x => new Magnet(x)).ToList();
+                    this.Results = results.Select(x => new Magnet(x.Item1, x.Item2)).ToList();
                 }
             }
 
@@ -251,7 +253,7 @@ namespace Traktor.Core
         {
             var requirements = GetRequirementsForMedia(media);
 
-            if (!force && media.LastScoutedAt.HasValue && requirements.Timeout.HasValue && (media.Release ?? media.StateDate).Add(requirements.Timeout.Value) < DateTime.Now)
+            if (!force && media.LastScoutedAt.HasValue && requirements.Timeout.HasValue && new DateTime(Math.Max(media.Release?.Ticks ?? media.StateDate.Ticks, media.StateDate.Ticks)).Add(requirements.Timeout.Value) < DateTime.Now)
                 return new ScoutResult { Status = ScoutResult.State.Timeout };
 
             if (!force && requirements.Delay.HasValue && media.Release?.Add(requirements.Delay.Value) > DateTime.Now)
@@ -275,12 +277,12 @@ namespace Traktor.Core
 
                 if (results.Any() && results.Any(x=>x.Evaluation.Passed && x.Evaluation.Score == x.Evaluation.MaximumScore))
                 {
-                    return new ScoutResult(results.Select(x => x.Result)) { Status = ScoutResult.State.Found };
+                    return new ScoutResult(results.Select(x => (x.Result, x.Evaluation.Score))) { Status = ScoutResult.State.Found };
                 }
             }
 
             if (results.Any())
-                return new ScoutResult(results.Select(x => x.Result)) { Status = results.Any(x=>x.Evaluation.Passed) ? ScoutResult.State.Found : ScoutResult.State.BelowReqs };
+                return new ScoutResult(results.Select(x => (x.Result, x.Evaluation.Score))) { Status = results.Any(x=>x.Evaluation.Passed) ? ScoutResult.State.Found : ScoutResult.State.BelowReqs };
 
             return new ScoutResult { Status = ScoutResult.State.NotFound };
         }

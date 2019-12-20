@@ -378,7 +378,7 @@ namespace Traktor.Core
             mediaToScout = mediaToScout ?? this.Library.ToList();
 
             // Special scouting for episodes to determine if we should download a full season or single episodes.
-            foreach (var season in mediaToScout.OfType<Episode>().State(Media.MediaState.Available).HasMagnet(false).GroupBy(x => new { x.ShowId, x.Season }))
+            foreach (var season in mediaToScout.OfType<Episode>().State(Media.MediaState.Available).HasMagnet(false).GroupBy(x => new { x.ShowId.Trakt, x.Season }).ToList())
             {
                 foreach (var episode in season.HasMagnet(false))
                 {
@@ -390,9 +390,11 @@ namespace Traktor.Core
                         case Scouter.ScoutResult.State.NotFound:
                         case Scouter.ScoutResult.State.Found:
                             if (scoutResult.Status == Scouter.ScoutResult.State.Found)
+                            {
                                 episode.AddMagnets(scoutResult.Results);
+                            }
 
-                            if (scoutResult.Status == Scouter.ScoutResult.State.NotFound || season.Count() == episode.TotalEpisodesInSeason)
+                            if (scoutResult.Status == Scouter.ScoutResult.State.NotFound || season.Count() == episode.TotalEpisodesInSeason || (episode.Magnets.FirstOrDefault(x => x.Link == episode.Magnet)?.IsFullSeason ?? false))
                             {
                                 var fullSeasonMagnet = season.FirstOrDefault(x => x.Magnets?.Any(y => y.IsFullSeason) ?? false)?.Magnets.FirstOrDefault(x => x.IsFullSeason);
                                 if (fullSeasonMagnet != null)
@@ -471,6 +473,11 @@ namespace Traktor.Core
                 if (this.Config.EnsureDownloadIntegrity)
                     EnsureDownloadIntegrify();
 
+                /*
+                 TODO
+                    2. Removing something from abandoned may take a long time to get back on the list if it's watchlisted because the library doesn't update unless there are changes or the service restarts.
+                 */
+
                 this.Library.Save();
 
                 return CuratorResult.Updated;
@@ -505,7 +512,7 @@ namespace Traktor.Core
                     history.State = dli.State;
                     history.Updated = DateTime.Now;
                 }
-                else if (history.Updated.AddMinutes(15) < DateTime.Now)
+                else if (history.Updated.AddMinutes(20) < DateTime.Now)
                 {
                     switch (dli.State)
                     {
@@ -527,7 +534,7 @@ namespace Traktor.Core
                 {
                     if (!history.RestartedOnce)
                     {
-                        this.Downloader.Restart(dli.MagnetUri);
+                        this.Downloader.Restart(dli.MagnetUri, true);
                         history.RestartedOnce = true;
                         history.Updated = DateTime.Now;
                     }
@@ -546,9 +553,9 @@ namespace Traktor.Core
             }
         }
 
-        public void RestartDownload(Media media)
+        public void RestartDownload(Media media, bool deleteTorrent = false)
         {
-            this.Downloader.Restart(media.Magnet);
+            this.Downloader.Restart(media.Magnet, deleteTorrent);
         }
 
         public void CancelDownload(Media media)

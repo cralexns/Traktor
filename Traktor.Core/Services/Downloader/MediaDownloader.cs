@@ -106,8 +106,15 @@ namespace Traktor.Core.Services.Downloader
                 this.Torrents.Add(magnetUri, torrentManager);
             }
 
-            if (FastResume.ContainsKey(magnetLink.InfoHash.ToHex()))
-                torrentManager.LoadFastResume(new FastResume((BEncodedDictionary)FastResume[magnetLink.InfoHash.ToHex()]));
+            try
+            {
+                if (FastResume.ContainsKey(magnetLink.InfoHash.ToHex()))
+                    torrentManager.LoadFastResume(new FastResume((BEncodedDictionary)FastResume[magnetLink.InfoHash.ToHex()]));
+            }
+            catch (InvalidOperationException ex)
+            {
+                FastResume.Remove(magnetLink.InfoHash.ToHex());
+            }  
 
             Engine.Register(torrentManager).Wait();
 
@@ -301,7 +308,7 @@ namespace Traktor.Core.Services.Downloader
             return this.Torrents.Select(x => new DownloadInfo(x.Key, x.Value, x.Value.Priority)).Cast<IDownloadInfo>().OrderByDescending(x=>x.Priority).ThenByDescending(x => x.Progress).ToList();
         }
 
-        public void Restart(Uri magnetUri)
+        public void Restart(Uri magnetUri, bool deleteTorrentFile = false)
         {
             if (magnetUri == null)
                 return;
@@ -309,7 +316,13 @@ namespace Traktor.Core.Services.Downloader
             var tm = this.Torrents.GetValueByKey(magnetUri);
             if (tm != null)
             {
+                tm.TorrentStateChanged -= TorrentManager_TorrentStateChanged;
                 tm.StopAsync().Wait();
+
+                if (deleteTorrentFile && tm.Torrent != null)
+                    File.Delete(tm.Torrent?.TorrentPath);
+
+                tm.TorrentStateChanged += TorrentManager_TorrentStateChanged;
                 tm.StartAsync().Wait();
             }
         }

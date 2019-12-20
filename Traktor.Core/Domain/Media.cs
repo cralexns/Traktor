@@ -255,7 +255,7 @@ namespace Traktor.Core.Domain
             this.Magnets = magnets;
 
             if (this.Magnet == null || forceSelect)
-                this.SetMagnet(magnets.OrderByDescending(x => x.IsFullSeason == selectFullSeason).FirstOrDefault().Link, forceSelect);
+                this.SetMagnet(magnets.OrderByDescending(x=>x.Score).ThenByDescending(x => x.IsFullSeason == selectFullSeason).FirstOrDefault().Link, forceSelect);
         }
 
         public override bool Equals(Media other)

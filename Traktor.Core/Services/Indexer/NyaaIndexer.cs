@@ -13,8 +13,8 @@ namespace Traktor.Core.Services.Indexer
         public string Name => "Nyaa";
         public override Regex QualityRegex { get; } = new Regex(@"(?:\.|\s|\[)?(?<quality>[0-9]{3,4}p)(?:\.|\s|\])", RegexOptions.ExplicitCapture);
         public override Regex TraitRegex { get; } = new Regex(@"(?:\.|\s)(?<trait>(BluRay)|(Blu-ray)|(DTS-HD\.MA)|(DTS-HD)|(DTS)|(\[?Dual Audio\]?)|((?:[A-Z]*)5\.1)|(7\.1)|(AAC)|(WEB-DL)|(REPACK)|(PROPER))+", RegexOptions.ExplicitCapture);
-        public override Regex NameRegex { get; } = new Regex(@"(?:^\[[\w-]+\]\s|^)(?<name>[\w\s;,\/\!]+(?<!COMPLETE))\s(?:\d{1,2}-\d{1,2}|-)?", RegexOptions.ExplicitCapture);
-        public override Regex NumberingRegex { get; } = new Regex(@"(?:-\s)(?<episode>[0-9]{1,3})(?:\s|v2)|(?<range>(\d{2}\s?(-|\~)\s?\d{1,2})|(\d{1,2}-\d{1,2}))", RegexOptions.ExplicitCapture); //(2 groups: episode and range)
+        public override Regex NameRegex { get; } = new Regex(@"(?:^\[[\w-\s]+.\]\s|^)(?<name>(?!\d{2})[A-Za-z0-9\s;,\/\!()'-]+?)\s(?:\d{1,2}-\d{1,2}|-\s\d{1,2}|\[|\d{2}|S\d{1})", RegexOptions.ExplicitCapture);
+        public override Regex NumberingRegex { get; } = new Regex(@"(?:-?\s)(?<episode>0?[1-9]+|\d{2})(?:\s|v2)|(?<range>(\d{2}\s?(-|~)\s?\d{1,2})|(\d{1,2}-\d{1,2}))|(?:S(?<season>\d+))", RegexOptions.ExplicitCapture); //(2 groups: episode and range)
 
         // Complete regex (bool) = (\sCOMPLETE\s)|(?:\[)(Complete)
 
@@ -33,13 +33,21 @@ namespace Traktor.Core.Services.Indexer
 
         public List<IndexerResult> FindResultsFor(Media media)
         {
-            var results = GetResultsForMedia(media).Where(x=>x.Name.Equals(media.GetCanonicalName(), StringComparison.OrdinalIgnoreCase) && (x.Seeds > 0 || x.Peers > 0));
+            var results = GetResultsForMedia(media).Where(x=> MatchName(x.Name, media.GetCanonicalName()) && (x.Seeds > 0 || x.Peers > 0));
             if (media is Episode episode)
             {
                 return results.Where(x=>x.Season == episode.Season || (!x.Season.HasValue && x.Episode == episode.Number)).ToList();
             }
 
             return results.Where(x => !x.Season.HasValue && x.Episode.HasValue).ToList();
+        }
+
+        private bool MatchName(string name1, string name2)
+        {
+            var canonName = Regex.Replace(name1, @"[^A-Za-z0-9\s]", "").Split(new char[0], StringSplitOptions.RemoveEmptyEntries);
+            var resultName = Regex.Replace(name2, @"[^A-Za-z0-9\s]", "").Split(new char[0], StringSplitOptions.RemoveEmptyEntries);
+
+            return canonName.Except(resultName).Count() == 0;
         }
 
         private IndexerResult ParseNyaaTorrent(NyaaTorrentResponse.Torrent torrent, Media media)

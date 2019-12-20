@@ -10,7 +10,7 @@ namespace Traktor.Core.Services.Downloader
         IDownloadInfo GetStatus(Uri magnetUri);
         IDownloadInfo Stop(Uri magnetUri, bool deleteFiles = false, bool remove = false);
 
-        void Restart(Uri magnetUri);
+        void Restart(Uri magnetUri, bool deleteTorrentFile = false);
 
         event Action<IDownloadInfo> OnChange;
     }
