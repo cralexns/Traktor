@@ -240,6 +240,8 @@ namespace Traktor.Core.Services.Downloader
             public int Priority { get; set; }
 
             public long Size { get; set; }
+            public long DownloadedBytes { get; set; }
+            public long UploadedBytes { get; set; }
 
             public long DownloadSpeed { get; set; }
             public long UploadSpeed { get; set; }
@@ -264,6 +266,9 @@ namespace Traktor.Core.Services.Downloader
                 State = GetState(torrentManager, state);
                 Size = torrentManager.Torrent?.Size ?? 0;
                 Priority = priority;
+
+                DownloadedBytes = torrentManager.Monitor?.DataBytesDownloaded ?? 0;
+                UploadedBytes = torrentManager.Monitor?.DataBytesUploaded ?? 0;
 
                 DownloadSpeed = torrentManager.Monitor.DownloadSpeed;
                 UploadSpeed = torrentManager.Monitor.UploadSpeed;

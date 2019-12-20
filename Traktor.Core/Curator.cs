@@ -506,9 +506,9 @@ namespace Traktor.Core
                 var isBroken = false;
                 var history = dlhistory.GetOrAdd(dli.MagnetUri, new DownloadHistory { Size = dli.Size, Updated = DateTime.Now, State = dli.State });
 
-                if (dli.Size != history.Size || dli.State != history.State)
+                if (dli.DownloadedBytes != history.Size || dli.State != history.State)
                 {
-                    history.Size = dli.Size;
+                    history.Size = dli.DownloadedBytes;
                     history.State = dli.State;
                     history.Updated = DateTime.Now;
                 }

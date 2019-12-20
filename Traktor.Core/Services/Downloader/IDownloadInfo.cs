@@ -18,6 +18,8 @@ namespace Traktor.Core.Services.Downloader
 
         long DownloadSpeed { get; set; }
         long UploadSpeed { get; set; }
+        long DownloadedBytes { get; set; }
+        long UploadedBytes { get; set; }
 
         public enum DownloadState
         {
