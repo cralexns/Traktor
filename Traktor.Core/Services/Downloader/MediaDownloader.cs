@@ -101,7 +101,7 @@ namespace Traktor.Core.Services.Downloader
                 if (this.Torrents.ContainsKey(magnetUri))
                     return;
 
-                torrentManager = new PrioritizedTorrentManager(priority, magnetLink, Path.Combine(this.DownloadPath, magnetLink.Name), new TorrentSettings(), Path.Combine(this.CachePath, $"{magnetLink.InfoHash.ToHex()}.torrent"));
+                torrentManager = new PrioritizedTorrentManager(priority, magnetLink, this.DownloadPath, new TorrentSettings(), Path.Combine(this.CachePath, $"{magnetLink.InfoHash.ToHex()}.torrent"));
 
                 this.Torrents.Add(magnetUri, torrentManager);
             }

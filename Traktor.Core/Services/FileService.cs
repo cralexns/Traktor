@@ -20,8 +20,6 @@ namespace Traktor.Core.Services
             public bool IncludeSubs { get; set; }
 
             public string[] MediaTypes { get; set; }
-
-            public Dictionary<string, string> RenameFilePattern { get; set; }
         }
 
         public FileConfiguration Config { get; private set; }
@@ -97,19 +95,35 @@ namespace Traktor.Core.Services
             return Path.Combine(Path.IsPathRooted(this.Config.MediaDestinations[mediaType]) ? this.Config.MediaDestinations[mediaType] : Path.Combine(Environment.CurrentDirectory, this.Config.MediaDestinations[mediaType]), uniqueName);
         }
 
-        private Media GetMediaForFile(string file, List<Media> relatedMedia, IEnumerable<Indexer.IIndexer> indexers)
+        private Media GetMediaForFile(string fileName, List<Media> relatedMedia, IEnumerable<Indexer.IIndexer> indexers)
         {
             if (relatedMedia.Count == 1)
                 return relatedMedia.FirstOrDefault();
 
             if (relatedMedia.Any(x=>x is Episode))
             {
-                var numbering = indexers.Select(x => x.GetNumbering(file)).OrderByDescending(x => x.Episode.HasValue.ToInt() + x.Season.HasValue.ToInt() + x.Range.HasValue.ToInt()).FirstOrDefault();
+                var numbering = indexers.Select(x => x.GetNumbering(fileName)).OrderByDescending(x => x.Episode.HasValue.ToInt() + x.Season.HasValue.ToInt() + x.Range.HasValue.ToInt()).FirstOrDefault();
                 return relatedMedia.Cast<Episode>().FirstOrDefault(x => x.Season == numbering.Season && x.Number == numbering.Episode);
             }
             
-            var fileCompareName = Indexer.NyaaIndexer.TransformForComparison(file);
+            var fileCompareName = Indexer.NyaaIndexer.TransformForComparison(fileName);
             return relatedMedia.OrderBy(x => Utility.GetDamerauLevenshteinDistance(fileCompareName, Indexer.NyaaIndexer.TransformForComparison(x.GetCanonicalName()))).FirstOrDefault();
+        }
+
+        public void RenameMediaFileTo(Media media, string newFileName)
+        {
+            var mediaPath = Path.Combine(BuildMediaPath(media.GetType().Name, media.GetPhysicalName()));
+
+            List<string> newPaths = new List<string>();
+            foreach (var filepath in media.RelativePath)
+            {
+                char[] invalidCharacters = Path.GetInvalidFileNameChars();
+
+                var newPath = Path.Combine(Path.GetDirectoryName(filepath), $"{new string(newFileName.Where(c => !invalidCharacters.Contains(c)).ToArray())}{Path.GetExtension(filepath)}");
+                File.Move(Path.Combine(mediaPath, filepath), Path.Combine(mediaPath, newPath));
+                newPaths.Add(newPath);
+            }
+            media.RelativePath = newPaths.ToArray();
         }
 
         private DeliveryResult HandleFileDelivery(IDownloadInfo downloadInfo, List<Media> relatedMedia, IEnumerable<Indexer.IIndexer> indexers)
@@ -135,10 +149,7 @@ namespace Traktor.Core.Services
                     if (!File.Exists(file))
                         continue;
 
-                    var fileRenamePattern = this.Config.RenameFilePattern.GetValueByKey(type.Name);
-                    var media = GetMediaForFile(file, relatedMedia, indexers);
-
-                    var newPath = Path.Combine(mediaPath, (!string.IsNullOrEmpty(fileRenamePattern) && media != null) ? Path.Combine(SmartFormat.Smart.Format(fileRenamePattern, media), Path.GetExtension(file)) : Path.GetFileName(file));
+                    var newPath = Path.Combine(mediaPath, Path.GetFileName(file));
                     var size = new FileInfo(file).Length;
                     for (int i=1; i<=4; i++)
                     {

@@ -26,6 +26,14 @@ namespace Traktor.Core.Domain
         public bool ExcludeUnwatchedShowsFromCalendar { get; set; } = true;
         public bool IgnoreSpecialSeasons { get; set; } = true;
 
+        public enum ImageFetchingBehavior
+        {
+            Never,
+            ExcludeCollection,
+            All
+        }
+        public ImageFetchingBehavior FetchImages { get; set; }
+
         public event Action<LibraryChange> OnChange;
 
         private void TriggerOnChange(List<LibraryChange> changes)
@@ -174,7 +182,7 @@ namespace Traktor.Core.Domain
                     //TriggerOnChange(new List<LibraryChange> { change });
                 }
 
-                if (string.IsNullOrEmpty(media.ImageUrl))
+                if (string.IsNullOrEmpty(media.ImageUrl) && this.FetchImages != ImageFetchingBehavior.Never && (this.FetchImages != ImageFetchingBehavior.ExcludeCollection || media.State != Media.MediaState.Collected))
                 {
                     var image = assets.GetAsset(media);
                     if (!string.IsNullOrEmpty(image))

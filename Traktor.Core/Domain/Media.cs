@@ -245,8 +245,8 @@ namespace Traktor.Core.Domain
             this.Number = number;
         }
 
-        public int Number { get; private set; }
-        public int Season { get; private set; }
+        public int Number { get; protected set; }
+        public int Season { get; protected set; }
 
         [NotMapped]
         public MediaId ShowId { get; set; } // We save this onto shadow properties when inserting
@@ -286,6 +286,15 @@ namespace Traktor.Core.Domain
         public override string GetCanonicalName()
         {
             return this.ShowTitle;
+        }
+
+        public Episode Clone(int season, int episode)
+        {
+            var cloned = this.MemberwiseClone() as Episode;
+            cloned.Number = episode;
+            cloned.Season = season;
+
+            return cloned;
         }
     }
 }

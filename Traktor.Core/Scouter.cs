@@ -308,9 +308,9 @@ namespace Traktor.Core
                 //results = results.Concat(indexers[i].FindResultsFor(media).Select((x) => (Result: x, Score: MediaRequirementScore(media, x, requirements))))
                 //    .OrderByDescending(x => x.Score).ThenByDescending(x => indexers[i].Priority).ThenByDescending(x => x.Result.Seeds + x.Result.Peers).ToList();
 
-                var mediaToScout = HandleRedirect(media);
+                var mediaToScout = GetRedirectedMedia(media) ?? media;
 
-                results = results.Concat(indexers[i].FindResultsFor(mediaToScout).Select((x) => (Result: x, Evaluation: EvaluateResult(x, media, requirements))))
+                results = results.Concat((indexers[i].FindResultsFor(mediaToScout) ?? new List<IndexerResult>()).Select((x) => (Result: x, Evaluation: EvaluateResult(x, media, requirements))))
                     .OrderByDescending(x => x.Evaluation.Score).ThenByDescending(x => indexers[i].Priority).ThenByDescending(x => x.Result.Seeds + x.Result.Peers).ToList();
 
                 if (results.Any() && results.Any(x=>x.Evaluation.Passed && x.Evaluation.Score == x.Evaluation.MaximumScore))
@@ -325,7 +325,7 @@ namespace Traktor.Core
             return new ScoutResult { Status = ScoutResult.State.NotFound };
         }
 
-        private Media HandleRedirect(Media media)
+        public Media GetRedirectedMedia(Media media)
         {
             if (media is Episode episode)
             {
@@ -348,15 +348,12 @@ namespace Traktor.Core
 
                         if (seasonRedirect.HasValue || episodeRedirect.HasValue)
                         {
-                            var redirected = new Episode(episode.ShowId, seasonRedirect ?? episode.Season, episodeRedirect ?? episode.Number);
-                            redirected.Id = episode.Id;
-
-                            return redirected;
+                            return episode.Clone(seasonRedirect ?? episode.Season, episodeRedirect ?? episode.Number);
                         }
                     }
                 }
             }
-            return media;
+            return null;
         }
 
         private (bool Passed, int Score, int MaximumScore) EvaluateResult(IndexerResult result, Media media, RequirementConfig requirement)

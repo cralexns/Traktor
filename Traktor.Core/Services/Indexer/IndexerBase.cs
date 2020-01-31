@@ -10,7 +10,7 @@ namespace Traktor.Core.Services.Indexer
     public class IndexerBase
     {
         public virtual Regex QualityRegex { get; } = new Regex(@"(?:\.|\s)(?<quality>[0-9]{3,4}p)(?:\.|\s)", RegexOptions.ExplicitCapture);
-        public virtual Regex NumberingRegex { get; } = new Regex(@"(?:\.|\s)S(?<season>[0-9]{1,2})(?:E)+(?<episode>[0-9]{1,2})+(\-E(?<range>\d{2}))?(?:\.|\s)", RegexOptions.ExplicitCapture & RegexOptions.IgnoreCase);
+        public virtual Regex NumberingRegex { get; } = new Regex(@"(?:\.|\s)S(?<season>[0-9]{1,2})(?:E(?<episode>[0-9]{1,2}))?(\-E(?<range>\d{2}))?(?:\.|\s)", RegexOptions.ExplicitCapture & RegexOptions.IgnoreCase);
         public virtual Regex TraitRegex { get; } = new Regex(@"(?:\.|\s)(?<trait>(BluRay)|(DTS-HD\.MA)|(DTS-HD)|(DTS)|(Atmos)|((?:[A-Z]*)5\.1)|(7\.1)|(AAC)|(WEB-DL)|(REPACK)|(PROPER))+", RegexOptions.ExplicitCapture);
         public virtual Regex GroupRegex { get; } = new Regex(@"(?:-)(?<group>\w*)(?:[^\.])*$", RegexOptions.ExplicitCapture);
         public virtual Regex NameRegex { get; } = new Regex(@"^(?<name>[\w\-\s\._]+?)(\d{4}|(S\d{2}))", RegexOptions.ExplicitCapture);

@@ -31,6 +31,10 @@ namespace Traktor.Core
             public bool ExcludeUnwatchedShowsFromCalendar { get; set; }
             public bool EnsureDownloadIntegrity { get; set; }
 
+            public Dictionary<string, string> RenameFilePattern { get; set; }
+
+            public Library.ImageFetchingBehavior FetchImages { get; set; }
+
             public static CuratorConfiguration Default => new CuratorConfiguration
             {
                 Download = new MediaDownloader.DownloaderSettings
@@ -88,7 +92,12 @@ namespace Traktor.Core
                                     SeasonFromEnd = 1,
                                     EpisodeFromStart = 11,
                                     SeasonCalculation = "2",
-                                    EpisodeCalculation = "{0} - 10"
+                                    EpisodeCalculation = "{0} - 11"
+                                },
+                                new Scouter.RedirectConfig.RedirectRule
+                                {
+                                    SeasonFromStart = 2,
+                                    SeasonCalculation = "{0} + 1"
                                 }
                             }
                         }
@@ -113,17 +122,18 @@ namespace Traktor.Core
                     "webm"
                     },
                     CleanUpSource = true,
-                    IncludeSubs = true,
-                    RenameFilePattern = new Dictionary<string, string>
-                    {
-                        { nameof(Episode), "{ShowTitle} - {Season}x{Number:00} - {Title}" }
-                    }
+                    IncludeSubs = true
                 },
                 SynchronizeCollection = true,
                 ScoutFrequency = TimeSpan.FromMinutes(30),
                 MaximumCalendarLookbackDays = 30,
                 IgnoreSpecialSeasons = true,
-                ExcludeUnwatchedShowsFromCalendar = true
+                ExcludeUnwatchedShowsFromCalendar = true,
+                FetchImages = Library.ImageFetchingBehavior.ExcludeCollection,
+                RenameFilePattern = new Dictionary<string, string>
+                {
+                    { nameof(Episode), "{ShowTitle} - {Season}x{Number:00} - {Title}" }
+                }
             };
         }
 
@@ -166,6 +176,7 @@ namespace Traktor.Core
                 this.Library.MaximumCalendarLookBackDays = config.MaximumCalendarLookbackDays;
                 this.Library.ExcludeUnwatchedShowsFromCalendar = config.ExcludeUnwatchedShowsFromCalendar;
                 this.Library.IgnoreSpecialSeasons = config.IgnoreSpecialSeasons;
+                this.Library.FetchImages = config.FetchImages;
                 this.Library.OnChange += (change) => { Library_OnChange(change, libraryCallback); };
 
                 this.Scouter = new Scouter(config.Scout);
@@ -217,10 +228,11 @@ namespace Traktor.Core
                     {
                         var indexer = GetBestNumberingIndexer(episodes.First(), delivery);
 
-                        var episodeFiles = delivery.Files.ToDictionary(x => indexer.GetNumbering(x).Episode, x => x);
+                        var episodeFiles = delivery.Files.ToDictionary(x => indexer.GetNumbering(x), x => x);
                         foreach (var media in episodes)
                         {
-                            media.RelativePath = new[] { episodeFiles.GetValueByKey(media.Number) };
+                            var redirectedMedia = this.Scouter.GetRedirectedMedia(media) as Episode ?? media;
+                            media.RelativePath = new[] { episodeFiles.GetValueByKey((redirectedMedia.Season, redirectedMedia.Number, null)) ?? episodeFiles.FirstOrDefault(x=>x.Key.Season == redirectedMedia.Season && x.Key.Episode <= redirectedMedia.Number && x.Key.Range >= redirectedMedia.Number).Value };
                         }
                     }
                     catch
@@ -241,6 +253,23 @@ namespace Traktor.Core
                         }
                     }
                 }
+
+                try
+                {
+                    var fileRenamePattern = this.Config.RenameFilePattern?.GetValueByKey(medias.FirstOrDefault().GetType().Name);
+                    if (!string.IsNullOrEmpty(fileRenamePattern))
+                    {
+                        foreach (var media in medias)
+                        {
+                            this.File.RenameMediaFileTo(media, SmartFormat.Smart.Format(fileRenamePattern, media));
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    // ?
+                }
+
                 this.Library.Save();
             }
 
@@ -500,8 +529,6 @@ namespace Traktor.Core
 
                 /*
                  IDEA
-                    1. Add option to rename files according to Trakt. (make it a setting with a pattern)
-                    2. Ability to redirect season and episode numbers on individual media.
                     3. Add support to Nyaa Indexer for seasonal anime numbering system. (SAO uses [Show Name - Season Name - Episode XX])
                         - Support multiple season torrents, fx.  "[anime4life.] Sword Art Online S1,S2+Extra Edition (BDRip 1080p AC3) Dual Audio"
                     ?. Implement auto update - could use https://github.com/Tyrrrz/Onova
@@ -618,6 +645,11 @@ namespace Traktor.Core
 
         public void Remove(Media media)
         {
+            if (media.Magnet != null && this.Downloader.GetStatus(media.Magnet) != null)
+            {
+                this.Downloader.Stop(media.Magnet, true, true);
+            }
+
             this.Library.Remove(media);
         }
 
