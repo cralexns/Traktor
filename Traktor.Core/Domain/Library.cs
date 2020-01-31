@@ -594,7 +594,7 @@ namespace Traktor.Core.Domain
                         break;
                     case "season":
                         var seasonShowId = item.show.ids.ToMediaId();
-                        var episodes = trakt.Many<Domain.Trakt.Episode>(new { id = seasonShowId, season = item.season.number }).ToList();
+                        var episodes = trakt.Many<Domain.Trakt.Episode>(new { id = seasonShowId.Trakt, season = item.season.number }).ToList();
                         foreach (var episode in episodes)
                             yield return new Episode(seasonShowId, episode.season, episode.number)
                             {
