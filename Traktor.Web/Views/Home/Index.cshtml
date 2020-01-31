@@ -63,132 +63,146 @@
                             {
                                 var item = indexedItem.Info.Media;
                                 var download = indexedItem.Info.Download;
-                                <div class="card text-left">
-                                    <div class="poster">
-                                        @if (!string.IsNullOrEmpty(item.ImageUrl))
-                                        {
-                                            <img src="@item.ImageUrl" />
-                                        }
-                                    </div>
-                                    <div class="card-body">
-                                        @*<a class="stretched-link" href="#@Url.Action("Get", "Home", new { dbId = item.DbId })"></a>*@
-                                        @{
-                                            switch (item)
-                                            {
-                                                case Episode episode:
-                                                    <h5 class="card-title">@episode.ShowTitle @($"{episode.Season:0}x{episode.Number:00}")</h5>
-                                                    @if (!string.IsNullOrEmpty(episode.Title))
-                                                    {
-                                                        <h6 class="card-subtitle">@episode.Title</h6>
-                                                    }
-                                                    break;
-                                                case Movie movie:
-                                                    <h5 class="card-title">@movie.Title (@movie.Year)</h5>
-                                                    break;
-                                            }
-                                        }
-                                    </div>
-                                    @if (item.State == Media.MediaState.Awaiting)
+                            <div class="card text-left">
+                                <div class="poster">
+                                    @if (!string.IsNullOrEmpty(item.ImageUrl))
                                     {
-                                        <small class="card-footer text-muted">
-                                            <i class="far fa-clock"></i> Releases <span data-livestamp="@(item.Release.ToUnixTimeSeconds())" title="@item.Release"></span>
-                                        </small>
-                                    }
-                                    @if (item.State == Media.MediaState.Available)
-                                    {
-                                        if (download != null)
-                                        {
-                                            var downloadClass = "";
-                                            var width = Math.Round(download.Progress, 2);
-                                            switch (download.State)
-                                            {
-                                                case Traktor.Core.Services.Downloader.IDownloadInfo.DownloadState.Downloading:
-                                                    downloadClass = "bg-success";
-                                                    break;
-                                                case Traktor.Core.Services.Downloader.IDownloadInfo.DownloadState.Initializing:
-                                                    downloadClass = "bg-info";
-                                                    width = 100;
-                                                    break;
-                                                case Traktor.Core.Services.Downloader.IDownloadInfo.DownloadState.Stalled:
-                                                    downloadClass = "bg-warning";
-                                                    break;
-                                                case Traktor.Core.Services.Downloader.IDownloadInfo.DownloadState.Waiting:
-                                                    downloadClass = "bg-secondary";
-                                                    break;
-                                                case Traktor.Core.Services.Downloader.IDownloadInfo.DownloadState.Failed:
-                                                    downloadClass = "bg-danger";
-                                                    width = 100;
-                                                    break;
-                                            }
-                                            <div class="progress rounded-0">
-                                                <div class="progress-bar @downloadClass" role="progressbar" style="width: @FormattableString.Invariant($"{width}%")" aria-valuenow="50" aria-valuemin="0" aria-valuemax="100">
-
-                                                </div>
-                                            </div>
-                                            <small class="card-footer text-muted d-flex align-items-center position-relative">
-                                                <span class="flex-grow-1">
-                                                    @switch (download.State)
-                                                    {
-                                                        case Traktor.Core.Services.Downloader.IDownloadInfo.DownloadState.Initializing:
-                                                            <span><i class="fas fa-circle-notch"></i>&nbsp;Initializing..</span>
-                                                            break;
-                                                        case Traktor.Core.Services.Downloader.IDownloadInfo.DownloadState.Stalled:
-                                                            <span class="text-warning"><i class="fas fa-exclamation-triangle"></i>&nbsp;Stalled!</span>
-                                                            break;
-                                                        case Traktor.Core.Services.Downloader.IDownloadInfo.DownloadState.Downloading:
-                                                        case Traktor.Core.Services.Downloader.IDownloadInfo.DownloadState.Completed:
-                                                            <span><i class="fas fa-arrow-alt-circle-down"></i>&nbsp;Downloading (@($"{Traktor.Core.Tools.Utility.SizeSuffix(download.DownloadSpeed)}/s"))</span>
-                                                            break;
-                                                        case Traktor.Core.Services.Downloader.IDownloadInfo.DownloadState.Waiting:
-                                                            <span><i class="far fa-hourglass"></i>&nbsp;Waiting</span>
-                                                            break;
-                                                        case Traktor.Core.Services.Downloader.IDownloadInfo.DownloadState.Failed:
-                                                            <span>Failed</span>
-                                                            break;
-                                                    }
-                                                </span>
-                                                <span class="badge badge-secondary priority" title="Priority">@indexedItem.Info.Priority</span>
-                                                <span class="actions" style="display:none;">
-                                                    <a href="@Url.Action("Action", "Home", new { dbId = item.DbId, actionType = HomeController.MediaAction.RestartDownload })" class="btn btn-outline-warning btn-sm" title="Restart download"><i class="fas fa-sync-alt"></i></a>
-                                                    <a href="@Url.Action("Action", "Home", new { dbId = item.DbId, actionType = HomeController.MediaAction.CancelDownload })" class="btn btn-outline-danger btn-sm" title="Cancel download"><i class="fas fa-ban"></i></a>
-                                                </span>
-                                            </small>
-                                        }
-                                        else if (item.Magnet != null)
-                                        {
-                                            <small class="card-footer text-muted">
-                                                <i class="fas fa-magnet"></i>&nbsp;<a href="@item.Magnet">Magnet found</a>
-                                            </small>
-                                        }
-                                        else
-                                        {
-                                            <small class="card-footer text-muted d-flex align-items-center position-relative">
-                                                <span class="flex-grow-1"><i class="fas fa-search"></i>&nbsp;Last scouted <span data-livestamp="@(item.LastScoutedAt.ToUnixTimeSeconds())" title="@item.LastScoutedAt"></span></span>
-                                                <span class="actions" style="display:none;">
-                                                    <a href="@Url.Action("Action", "Home", new { dbId = item.DbId, actionType = HomeController.MediaAction.Scout })" class="btn btn-outline-info btn-sm" title="Scout now"><i class="fas fa-search-plus"></i></a>
-                                                </span>
-                                            </small>
-                                        }
-                                    }
-                                    @if (item.State == Media.MediaState.Collected)
-                                    {
-                                        <small class="card-footer text-muted d-flex align-items-center position-relative">
-                                            <span class="flex-grow-1"><i class="fas fa-box"></i>&nbsp;Collected <span data-livestamp="@((item.CollectedAt ?? item.StateDate).ToUnixTimeSeconds())" title="@(item.CollectedAt ?? item.StateDate)"></span></span>
-                                            <span class="actions" style="display:none;">
-                                                <a href="@Url.Action("Action", "Home", new { dbId = item.DbId, actionType = HomeController.MediaAction.Restart })" class="btn btn-outline-info btn-sm" title="Restart"><i class="fas fa-redo"></i></a>
-                                            </span>
-                                        </small>
-                                    }
-                                    @if (item.State == Media.MediaState.Abandoned)
-                                    {
-                                        <small class="card-footer text-muted d-flex align-items-center position-relative">
-                                            <span class="flex-grow-1"><i class="fas fa-exclamation-circle"></i>&nbsp;Abandoned <span data-livestamp="@(item.StateDate.ToUnixTimeSeconds())" title="@item.StateDate"></span></span>
-                                            <span class="actions" style="display:none;">
-                                                <a href="@Url.Action("Action", "Home", new { dbId = item.DbId, actionType = HomeController.MediaAction.Reset })" class="btn btn-outline-info btn-sm" title="Remove from local library. (If watchlisted it will register again on next update)"><i class="fas fa-minus-circle"></i></a>
-                                            </span>
-                                        </small>
+                                        <img src="@item.ImageUrl" />
                                     }
                                 </div>
+                                <div class="card-body">
+                                    @*<a class="stretched-link" href="#@Url.Action("Get", "Home", new { dbId = item.DbId })"></a>*@
+                                    @{
+                                        switch (item)
+                                        {
+                                            case Episode episode:
+                                                <h5 class="card-title">@episode.ShowTitle @($"{episode.Season:0}x{episode.Number:00}")</h5>
+                                                @if (!string.IsNullOrEmpty(episode.Title))
+                                                {
+                                                    <h6 class="card-subtitle">@episode.Title</h6>
+                                                }
+                                                break;
+                                            case Movie movie:
+                                                <h5 class="card-title">@movie.Title (@movie.Year)</h5>
+                                                break;
+                                        }
+                                    }
+                                </div>
+                                @if (item.State == Media.MediaState.Awaiting)
+                                {
+                                    <small class="card-footer text-muted d-flex align-items-center position-relative">
+                                        <span class="flex-grow-1">
+                                            <i class="far fa-clock"></i> Releases <span data-livestamp="@(item.Release.ToUnixTimeSeconds())" title="@item.Release"></span>
+                                        </span>
+                                        <span class="actions" style="display:none;">
+                                            <a href="@Url.Action("Action", "Home", new { dbId = item.DbId, actionType = HomeController.MediaAction.Remove })" class="btn btn-danger btn-sm" title="Remove"><i class="fas fa-minus-circle"></i></a>
+                                        </span>
+                                    </small>
+                                }
+                                @if (item.State == Media.MediaState.Available)
+                                {
+                                    if (download != null)
+                                    {
+                                        var downloadClass = "";
+                                        var width = Math.Round(download.Progress, 2);
+                                        switch (download.State)
+                                        {
+                                            case Traktor.Core.Services.Downloader.IDownloadInfo.DownloadState.Downloading:
+                                                downloadClass = "bg-success";
+                                                break;
+                                            case Traktor.Core.Services.Downloader.IDownloadInfo.DownloadState.Initializing:
+                                                downloadClass = "bg-info";
+                                                width = 100;
+                                                break;
+                                            case Traktor.Core.Services.Downloader.IDownloadInfo.DownloadState.Stalled:
+                                                downloadClass = "bg-warning";
+                                                break;
+                                            case Traktor.Core.Services.Downloader.IDownloadInfo.DownloadState.Waiting:
+                                                downloadClass = "bg-secondary";
+                                                break;
+                                            case Traktor.Core.Services.Downloader.IDownloadInfo.DownloadState.Failed:
+                                                downloadClass = "bg-danger";
+                                                width = 100;
+                                                break;
+                                        }
+                                        <div class="progress rounded-0">
+                                            <div class="progress-bar @downloadClass" role="progressbar" style="width: @FormattableString.Invariant($"{width}%")" aria-valuenow="50" aria-valuemin="0" aria-valuemax="100">
+
+                                            </div>
+                                        </div>
+                                        <small class="card-footer text-muted d-flex align-items-center position-relative">
+                                            <span class="flex-grow-1">
+                                                @switch (download.State)
+                                                {
+                                                    case Traktor.Core.Services.Downloader.IDownloadInfo.DownloadState.Initializing:
+                                                        <span><i class="fas fa-circle-notch"></i>&nbsp;Initializing..</span>
+                                                        break;
+                                                    case Traktor.Core.Services.Downloader.IDownloadInfo.DownloadState.Stalled:
+                                                        <span class="text-warning"><i class="fas fa-exclamation-triangle"></i>&nbsp;Stalled!</span>
+                                                        break;
+                                                    case Traktor.Core.Services.Downloader.IDownloadInfo.DownloadState.Downloading:
+                                                    case Traktor.Core.Services.Downloader.IDownloadInfo.DownloadState.Completed:
+                                                        <span><i class="fas fa-arrow-alt-circle-down"></i>&nbsp;Downloading (@($"{Traktor.Core.Tools.Utility.SizeSuffix(download.DownloadSpeed)}/s"))</span>
+                                                        break;
+                                                    case Traktor.Core.Services.Downloader.IDownloadInfo.DownloadState.Waiting:
+                                                        <span><i class="far fa-hourglass"></i>&nbsp;Waiting</span>
+                                                        break;
+                                                    case Traktor.Core.Services.Downloader.IDownloadInfo.DownloadState.Failed:
+                                                        <span>Failed</span>
+                                                        break;
+                                                }
+                                            </span>
+                                            <span class="badge badge-secondary priority" title="Priority">@indexedItem.Info.Priority</span>
+                                            <span class="actions" style="display:none;">
+                                                <a href="@Url.Action("Action", "Home", new { dbId = item.DbId, actionType = HomeController.MediaAction.RestartDownload })" class="btn btn-info btn-sm" title="Restart download"><i class="fas fa-sync-alt"></i></a>
+                                                <a href="@Url.Action("Action", "Home", new { dbId = item.DbId, actionType = HomeController.MediaAction.CancelDownload })" class="btn btn-warning btn-sm" title="Cancel download"><i class="fas fa-ban"></i></a>
+                                                <a href="@Url.Action("Action", "Home", new { dbId = item.DbId, actionType = HomeController.MediaAction.Remove })" class="btn btn-danger btn-sm" title="Remove"><i class="fas fa-minus-circle"></i></a>
+                                            </span>
+                                        </small>
+                                    }
+                                    else if (item.Magnet != null)
+                                    {
+                                        <small class="card-footer text-muted d-flex align-items-center position-relative">
+                                            <span class="flex-grow-1">
+                                                <i class="fas fa-magnet"></i>&nbsp;<a href="@item.Magnet">Magnet found</a>
+                                            </span>
+                                            <span class="actions" style="display:none;">
+                                                <a href="@Url.Action("Action", "Home", new { dbId = item.DbId, actionType = HomeController.MediaAction.Remove })" class="btn btn-danger btn-sm" title="Remove"><i class="fas fa-minus-circle"></i></a>
+                                            </span>
+                                        </small>
+                                    }
+                                    else
+                                    {
+                                        <small class="card-footer text-muted d-flex align-items-center position-relative">
+                                            <span class="flex-grow-1"><i class="fas fa-search"></i>&nbsp;Last scouted <span data-livestamp="@(item.LastScoutedAt.ToUnixTimeSeconds())" title="@item.LastScoutedAt"></span></span>
+                                            <span class="actions" style="display:none;">
+                                                <a href="@Url.Action("Action", "Home", new { dbId = item.DbId, actionType = HomeController.MediaAction.Scout })" class="btn btn-info btn-sm" title="Scout now"><i class="fas fa-search-plus"></i></a>
+                                                <a href="@Url.Action("Action", "Home", new { dbId = item.DbId, actionType = HomeController.MediaAction.Remove })" class="btn btn-danger btn-sm" title="Remove"><i class="fas fa-minus-circle"></i></a>
+                                            </span>
+                                        </small>
+                                    }
+                                }
+                                @if (item.State == Media.MediaState.Collected)
+                                {
+                                    <small class="card-footer text-muted d-flex align-items-center position-relative">
+                                        <span class="flex-grow-1"><i class="fas fa-box"></i>&nbsp;Collected <span data-livestamp="@((item.CollectedAt ?? item.StateDate).ToUnixTimeSeconds())" title="@(item.CollectedAt ?? item.StateDate)"></span></span>
+                                        <span class="actions" style="display:none;">
+                                            <a href="@Url.Action("Action", "Home", new { dbId = item.DbId, actionType = HomeController.MediaAction.Restart })" class="btn btn-info btn-sm" title="Restart"><i class="fas fa-redo"></i></a>
+                                            <a href="@Url.Action("Action", "Home", new { dbId = item.DbId, actionType = HomeController.MediaAction.Remove })" class="btn btn-danger btn-sm" title="Remove"><i class="fas fa-minus-circle"></i></a>
+                                        </span>
+                                    </small>
+                                }
+                                @if (item.State == Media.MediaState.Abandoned)
+                                {
+                                    <small class="card-footer text-muted d-flex align-items-center position-relative">
+                                        <span class="flex-grow-1"><i class="fas fa-exclamation-circle"></i>&nbsp;Abandoned <span data-livestamp="@(item.StateDate.ToUnixTimeSeconds())" title="@item.StateDate"></span></span>
+                                        <span class="actions" style="display:none;">
+                                            <a href="@Url.Action("Action", "Home", new { dbId = item.DbId, actionType = HomeController.MediaAction.Restart })" class="btn btn-info btn-sm" title="Restart"><i class="fas fa-redo"></i></a>
+                                            <a href="@Url.Action("Action", "Home", new { dbId = item.DbId, actionType = HomeController.MediaAction.Remove })" class="btn btn-danger btn-sm" title="Remove"><i class="fas fa-minus-circle"></i></a>
+                                        </span>
+                                    </small>
+                                }
+                            </div>
                                 @if ((indexedItem.Index + 1) % 7 == 0)
                                 {
                                     <div class="w-100 mb-2"></div>

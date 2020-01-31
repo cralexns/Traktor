@@ -9,7 +9,7 @@ using System.Text;
 namespace Traktor.Core.Domain
 {
     [Table("Media")]
-    public abstract class Media : IEquatable<Media>
+    public abstract class Media : IEquatable<Media>, ICloneable
     {
         public class EqualityComparer<T> : IEqualityComparer<T> where T : Media
         {
@@ -214,6 +214,11 @@ namespace Traktor.Core.Domain
         public virtual string GetCanonicalName()
         {
             return this.Title;
+        }
+
+        public object Clone()
+        {
+            return this.MemberwiseClone();
         }
     }
 

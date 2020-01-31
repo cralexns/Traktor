@@ -13,6 +13,11 @@ namespace Traktor.Core.Extensions
             return default;
         }
 
+        public static int ToInt(this bool boolean)
+        {
+            return boolean ? 1 : 0;
+        }
+
         public static long? ToLong(this string str)
         {
             if (long.TryParse(str, out long result))

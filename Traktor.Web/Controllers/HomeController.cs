@@ -50,7 +50,7 @@ namespace Traktor.Web.Controllers
             RestartDownload,
             CancelDownload,
             Scout,
-            Reset,
+            Remove,
             Restart
         }
 
@@ -71,8 +71,8 @@ namespace Traktor.Web.Controllers
                     case MediaAction.Scout:
                         Curator.ForceScout(mediaItem);
                         break;
-                    case MediaAction.Reset:
-                        Curator.Reset(mediaItem);
+                    case MediaAction.Remove:
+                        Curator.Remove(mediaItem);
                         break;
                     case MediaAction.Restart:
                         Curator.Restart(mediaItem);

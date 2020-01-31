@@ -42,10 +42,15 @@ namespace Traktor.Core.Services.Indexer
             return results.Where(x => !x.Season.HasValue && x.Episode.HasValue).ToList();
         }
 
+        public static string TransformForComparison(string text)
+        {
+            return Regex.Replace(text, @"[^A-Za-z0-9\s]", "");
+        }
+
         private bool MatchName(string name1, string name2)
         {
-            var canonName = Regex.Replace(name1, @"[^A-Za-z0-9\s]", "").Split(new char[0], StringSplitOptions.RemoveEmptyEntries);
-            var resultName = Regex.Replace(name2, @"[^A-Za-z0-9\s]", "").Split(new char[0], StringSplitOptions.RemoveEmptyEntries);
+            var canonName = TransformForComparison(name1).Split(new char[0], StringSplitOptions.RemoveEmptyEntries);
+            var resultName = TransformForComparison(name2).Split(new char[0], StringSplitOptions.RemoveEmptyEntries);
 
             return canonName.Except(resultName).Count() == 0;
         }

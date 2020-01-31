@@ -18,7 +18,7 @@ namespace Traktor.Core
     {
         public class CuratorConfiguration
         {
-            public Scouter.RequirementConfig[] Requirements { get; set; }
+            public Scouter.ScouterSettings Scout { get; set; }
 
             public MediaDownloader.DownloaderSettings Download { get; set; }
 
@@ -41,35 +41,56 @@ namespace Traktor.Core
                     MaximumDownloadSpeedKb = 1024 * 5,
                     MaxConcurrent = 3
                 },
-                Requirements = new[] 
-                { 
-                    new Scouter.RequirementConfig
-                    {
-                        MediaType = nameof(Episode),
-                        Delay = null,
-                        Timeout = TimeSpan.FromDays(7),
-                        Parameters = new List<Scouter.RequirementConfig.Parameter>
+                Scout = new Scouter.ScouterSettings
+                {
+                    Requirements = new[] 
+                    { 
+                        new Scouter.RequirementConfig
                         {
-                            new Scouter.RequirementConfig.Parameter { Category = Scouter.RequirementConfig.Parameter.ParameterCategory.Resolution, Definition = new [] { nameof(IndexerResult.VideoQualityLevel.HD_720p) }, Comparison = Scouter.RequirementConfig.Parameter.ParameterComparison.Minimum },
-                            new Scouter.RequirementConfig.Parameter { Category = Scouter.RequirementConfig.Parameter.ParameterCategory.Resolution, Definition = new[] { nameof(IndexerResult.VideoQualityLevel.FHD_1080p) }, Patience = TimeSpan.FromHours(7) },
-                            new Scouter.RequirementConfig.Parameter { Category = Scouter.RequirementConfig.Parameter.ParameterCategory.Tag, Definition = new[] { nameof(IndexerResult.QualityTrait.PROPER), nameof(IndexerResult.QualityTrait.REPACK) }, Patience = TimeSpan.FromHours(3)}
+                            MediaType = nameof(Episode),
+                            Delay = null,
+                            Timeout = TimeSpan.FromDays(7),
+                            Parameters = new List<Scouter.RequirementConfig.Parameter>
+                            {
+                                new Scouter.RequirementConfig.Parameter { Category = Scouter.RequirementConfig.Parameter.ParameterCategory.Resolution, Definition = new [] { nameof(IndexerResult.VideoQualityLevel.HD_720p) }, Comparison = Scouter.RequirementConfig.Parameter.ParameterComparison.Minimum },
+                                new Scouter.RequirementConfig.Parameter { Category = Scouter.RequirementConfig.Parameter.ParameterCategory.Resolution, Definition = new[] { nameof(IndexerResult.VideoQualityLevel.FHD_1080p) }, Patience = TimeSpan.FromHours(7) },
+                                new Scouter.RequirementConfig.Parameter { Category = Scouter.RequirementConfig.Parameter.ParameterCategory.Tag, Definition = new[] { nameof(IndexerResult.QualityTrait.PROPER), nameof(IndexerResult.QualityTrait.REPACK) }, Patience = TimeSpan.FromHours(3)}
+                            }
+                        },
+                        new Scouter.RequirementConfig
+                        {
+                            MediaType = nameof(Movie),
+                            Delay = TimeSpan.FromDays(1),
+                            Timeout = null,
+                            NoResultThrottle = TimeSpan.FromDays(1),
+                            Parameters = new List<Scouter.RequirementConfig.Parameter>
+                            {
+                                new Scouter.RequirementConfig.Parameter { Category = Scouter.RequirementConfig.Parameter.ParameterCategory.Resolution, Definition = new[] { nameof(IndexerResult.VideoQualityLevel.FHD_1080p) }, Comparison = Scouter.RequirementConfig.Parameter.ParameterComparison.Minimum },
+                                new Scouter.RequirementConfig.Parameter { Category = Scouter.RequirementConfig.Parameter.ParameterCategory.Resolution, Definition = new[] { nameof(IndexerResult.VideoQualityLevel.FHD_1080p) }, Patience = TimeSpan.FromDays(30) },
+                                new Scouter.RequirementConfig.Parameter { Category = Scouter.RequirementConfig.Parameter.ParameterCategory.Audio, Definition = new [] { nameof(IndexerResult.QualityTrait.AC5_1), nameof(IndexerResult.QualityTrait.DTS), nameof(IndexerResult.QualityTrait.Atmos) }, Patience = TimeSpan.FromDays(30) },
+                                new Scouter.RequirementConfig.Parameter { Category = Scouter.RequirementConfig.Parameter.ParameterCategory.Source, Definition = new [] { nameof(IndexerResult.QualityTrait.BluRay) }, Patience = TimeSpan.Zero },
+                                new Scouter.RequirementConfig.Parameter { Category = Scouter.RequirementConfig.Parameter.ParameterCategory.Audio, Definition = new [] { nameof(IndexerResult.QualityTrait.AAC)}, Comparison = Scouter.RequirementConfig.Parameter.ParameterComparison.NotEqual },
+                                new Scouter.RequirementConfig.Parameter { Category = Scouter.RequirementConfig.Parameter.ParameterCategory.Group, Definition = new [] { "SPARKS" }, Patience = TimeSpan.Zero },
+                                new Scouter.RequirementConfig.Parameter { Category = Scouter.RequirementConfig.Parameter.ParameterCategory.SizeMb, Definition = new [] { "10000" }, Comparison = Scouter.RequirementConfig.Parameter.ParameterComparison.Minimum }
+                            }
                         }
                     },
-                    new Scouter.RequirementConfig
+                    Redirects = new []
                     {
-                        MediaType = nameof(Movie),
-                        Delay = TimeSpan.FromDays(1),
-                        Timeout = null,
-                        NoResultThrottle = TimeSpan.FromDays(1),
-                        Parameters = new List<Scouter.RequirementConfig.Parameter>
+                        new Scouter.RedirectConfig
                         {
-                            new Scouter.RequirementConfig.Parameter { Category = Scouter.RequirementConfig.Parameter.ParameterCategory.Resolution, Definition = new[] { nameof(IndexerResult.VideoQualityLevel.FHD_1080p) }, Comparison = Scouter.RequirementConfig.Parameter.ParameterComparison.Minimum },
-                            new Scouter.RequirementConfig.Parameter { Category = Scouter.RequirementConfig.Parameter.ParameterCategory.Resolution, Definition = new[] { nameof(IndexerResult.VideoQualityLevel.FHD_1080p) }, Patience = TimeSpan.FromDays(30) },
-                            new Scouter.RequirementConfig.Parameter { Category = Scouter.RequirementConfig.Parameter.ParameterCategory.Audio, Definition = new [] { nameof(IndexerResult.QualityTrait.AC5_1), nameof(IndexerResult.QualityTrait.DTS), nameof(IndexerResult.QualityTrait.Atmos) }, Patience = TimeSpan.FromDays(30) },
-                            new Scouter.RequirementConfig.Parameter { Category = Scouter.RequirementConfig.Parameter.ParameterCategory.Source, Definition = new [] { nameof(IndexerResult.QualityTrait.BluRay) }, Patience = TimeSpan.Zero },
-                            new Scouter.RequirementConfig.Parameter { Category = Scouter.RequirementConfig.Parameter.ParameterCategory.Audio, Definition = new [] { nameof(IndexerResult.QualityTrait.AAC)}, Comparison = Scouter.RequirementConfig.Parameter.ParameterComparison.NotEqual },
-                            new Scouter.RequirementConfig.Parameter { Category = Scouter.RequirementConfig.Parameter.ParameterCategory.Group, Definition = new [] { "SPARKS" }, Patience = TimeSpan.Zero },
-                            new Scouter.RequirementConfig.Parameter { Category = Scouter.RequirementConfig.Parameter.ParameterCategory.SizeMb, Definition = new [] { "10000" }, Comparison = Scouter.RequirementConfig.Parameter.ParameterComparison.Minimum }
+                            TraktShowSlug = "chilling-adventures-of-sabrina",
+                            Rules = new[]
+                            {
+                                new Scouter.RedirectConfig.RedirectRule
+                                {
+                                    SeasonFromStart = 1,
+                                    SeasonFromEnd = 1,
+                                    EpisodeFromStart = 11,
+                                    SeasonCalculation = "2",
+                                    EpisodeCalculation = "{0} - 10"
+                                }
+                            }
                         }
                     }
                 },
@@ -92,7 +113,11 @@ namespace Traktor.Core
                     "webm"
                     },
                     CleanUpSource = true,
-                    IncludeSubs = true
+                    IncludeSubs = true,
+                    RenameFilePattern = new Dictionary<string, string>
+                    {
+                        { nameof(Episode), "{ShowTitle} - {Season}x{Number:00} - {Title}" }
+                    }
                 },
                 SynchronizeCollection = true,
                 ScoutFrequency = TimeSpan.FromMinutes(30),
@@ -143,7 +168,7 @@ namespace Traktor.Core
                 this.Library.IgnoreSpecialSeasons = config.IgnoreSpecialSeasons;
                 this.Library.OnChange += (change) => { Library_OnChange(change, libraryCallback); };
 
-                this.Scouter = new Scouter(config.Requirements);
+                this.Scouter = new Scouter(config.Scout);
                 this.Scouter.OnScouted += Scouter_OnScouted;
 
                 if (scouterCallback != null)
@@ -263,10 +288,10 @@ namespace Traktor.Core
             {
                 if (relatedMedia?.Any(x => x.State != Media.MediaState.Collected) ?? false)
                 {
-                    var deliveryResult = this.File.DeliverFiles(downloadInfo, relatedMedia);
+                    var indexers = this.Scouter.GetIndexersForMedia(relatedMedia.First());
+                    var deliveryResult = this.File.DeliverFiles(downloadInfo, relatedMedia, indexers);
                     if (deliveryResult.Status == FileService.DeliveryResult.DeliveryStatus.OK)
                     {
-                        var indexers = this.Scouter.GetIndexersForMedia(relatedMedia.First());
                         var quality = indexers.Select(x => x.GetQualityLevel(downloadInfo.Name)).OrderByDescending(x => x).FirstOrDefault();
                         var traits = indexers.Select(x => x.GetTraits(downloadInfo.Name)).OrderByDescending(x => x.Length).FirstOrDefault();
 
@@ -474,8 +499,12 @@ namespace Traktor.Core
                     EnsureDownloadIntegrify();
 
                 /*
-                 TODO
-                    2. Removing something from abandoned may take a long time to get back on the list if it's watchlisted because the library doesn't update unless there are changes or the service restarts.
+                 IDEA
+                    1. Add option to rename files according to Trakt. (make it a setting with a pattern)
+                    2. Ability to redirect season and episode numbers on individual media.
+                    3. Add support to Nyaa Indexer for seasonal anime numbering system. (SAO uses [Show Name - Season Name - Episode XX])
+                        - Support multiple season torrents, fx.  "[anime4life.] Sword Art Online S1,S2+Extra Edition (BDRip 1080p AC3) Dual Audio"
+                    ?. Implement auto update - could use https://github.com/Tyrrrz/Onova
                  */
 
                 this.Library.Save();
@@ -503,6 +532,9 @@ namespace Traktor.Core
             var activeDownloads = allDownloads.Count(x => x.State == IDownloadInfo.DownloadState.Initializing || x.State == IDownloadInfo.DownloadState.Downloading);
             foreach (var dli in allDownloads)
             {
+                var relatedMedia = this.Library.GetMediaWithMagnet(dli.MagnetUri);
+                var patience = (relatedMedia.Max(x => x.Release) < DateTime.Now.AddMonths(-6)) ? TimeSpan.FromDays(1) : TimeSpan.FromMinutes(30);
+
                 var isBroken = false;
                 var history = dlhistory.GetOrAdd(dli.MagnetUri, new DownloadHistory { Size = dli.Size, Updated = DateTime.Now, State = dli.State });
 
@@ -512,7 +544,7 @@ namespace Traktor.Core
                     history.State = dli.State;
                     history.Updated = DateTime.Now;
                 }
-                else if (history.Updated.AddMinutes(20) < DateTime.Now)
+                else if (history.Updated.Add(patience) < DateTime.Now)
                 {
                     switch (dli.State)
                     {
@@ -572,7 +604,7 @@ namespace Traktor.Core
 
         public void Restart(Media media)
         {
-            if (media.State == Media.MediaState.Collected)
+            if (media.State.Is(Media.MediaState.Collected, Media.MediaState.Abandoned))
             {
                 media.ChangeStateTo(Media.MediaState.Registered);
                 if (media.Id == null)
@@ -584,12 +616,9 @@ namespace Traktor.Core
             }
         }
 
-        public void Reset(Media media)
+        public void Remove(Media media)
         {
-            if (media.State == Media.MediaState.Abandoned)
-            {
-                this.Library.Remove(media);
-            }
+            this.Library.Remove(media);
         }
 
         public void Dispose()

@@ -13,6 +13,13 @@ namespace Traktor.Core
 {
     public class Scouter
     {
+        public class ScouterSettings
+        {
+            public RequirementConfig[] Requirements { get; set; }
+
+            public RedirectConfig[] Redirects { get; set; }
+        }
+
         public class RequirementConfig
         {
             public string MediaType { get; set; }
@@ -155,14 +162,43 @@ namespace Traktor.Core
 
         }
 
-        public RequirementConfig[] Requirements { get; private set; }
+        public class RedirectConfig
+        {
+            public class RedirectRule
+            {
+                public int? SeasonFromStart { get; set; }
+                public int? SeasonFromEnd { get; set; }
+
+                public int? EpisodeFromStart { get; set; }
+                public int? EpisodeFromEnd { get; set; }
+
+                public string SeasonCalculation { get; set; }
+                public string EpisodeCalculation { get; set; }
+
+                public bool AppliesTo(Episode episode)
+                {
+                    if (episode.Season < (SeasonFromStart ?? episode.Season) || episode.Season > (SeasonFromEnd ?? episode.Season))
+                        return false;
+
+                    if (episode.Number < (EpisodeFromStart ?? episode.Number) || episode.Number > (EpisodeFromEnd ?? episode.Number))
+                        return false;
+
+                    return true;
+                }
+            }
+
+            public string TraktShowSlug { get; set; }
+            public RedirectRule[] Rules { get; set; }
+        }
+
+        public ScouterSettings Settings { get; private set; }
 
         public List<IIndexer> Indexers { get; private set; }
 
         public event Action<ScoutResult, Media> OnScouted;
-        public Scouter(params RequirementConfig[] requirements)
+        public Scouter(ScouterSettings settings)
         {
-            this.Requirements = requirements;
+            this.Settings = settings;
 
             this.Indexers = Assembly.GetExecutingAssembly().GetTypes().Where(x => typeof(IIndexer).IsAssignableFrom(x) && !x.IsInterface && !x.IsAbstract)
                 .Select(x => Activator.CreateInstance(x) as IIndexer).ToList();
@@ -246,7 +282,7 @@ namespace Traktor.Core
 
         public RequirementConfig GetRequirementsForMedia(Media media)
         {
-            return this.Requirements.FirstOrDefault(x => x.MediaType == media.GetType().Name);
+            return this.Settings.Requirements.FirstOrDefault(x => x.MediaType == media.GetType().Name);
         }
 
         private ScoutResult GetScoutResult(Media media, bool force = false)
@@ -272,7 +308,9 @@ namespace Traktor.Core
                 //results = results.Concat(indexers[i].FindResultsFor(media).Select((x) => (Result: x, Score: MediaRequirementScore(media, x, requirements))))
                 //    .OrderByDescending(x => x.Score).ThenByDescending(x => indexers[i].Priority).ThenByDescending(x => x.Result.Seeds + x.Result.Peers).ToList();
 
-                results = results.Concat(indexers[i].FindResultsFor(media).Select((x) => (Result: x, Evaluation: EvaluateResult(x, media, requirements))))
+                var mediaToScout = HandleRedirect(media);
+
+                results = results.Concat(indexers[i].FindResultsFor(mediaToScout).Select((x) => (Result: x, Evaluation: EvaluateResult(x, media, requirements))))
                     .OrderByDescending(x => x.Evaluation.Score).ThenByDescending(x => indexers[i].Priority).ThenByDescending(x => x.Result.Seeds + x.Result.Peers).ToList();
 
                 if (results.Any() && results.Any(x=>x.Evaluation.Passed && x.Evaluation.Score == x.Evaluation.MaximumScore))
@@ -285,6 +323,40 @@ namespace Traktor.Core
                 return new ScoutResult(results.Select(x => (x.Result, x.Evaluation.Score))) { Status = results.Any(x=>x.Evaluation.Passed) ? ScoutResult.State.Found : ScoutResult.State.BelowReqs };
 
             return new ScoutResult { Status = ScoutResult.State.NotFound };
+        }
+
+        private Media HandleRedirect(Media media)
+        {
+            if (media is Episode episode)
+            {
+                var redirect = this.Settings.Redirects?.FirstOrDefault(x => x.TraktShowSlug == episode.ShowId.Slug);
+                if (redirect != null)
+                {
+                    var dt = new System.Data.DataTable();
+                    foreach (var rule in redirect.Rules.Where(x=>x.AppliesTo(episode)))
+                    {
+                        int? seasonRedirect = null;
+                        int? episodeRedirect = null;
+                        if (!string.IsNullOrEmpty(rule.SeasonCalculation))
+                        {
+                            seasonRedirect = dt.Compute(string.Format(rule.SeasonCalculation, episode.Season), "") as int?;
+                        }
+                        if (!string.IsNullOrEmpty(rule.EpisodeCalculation))
+                        {
+                            episodeRedirect = dt.Compute(string.Format(rule.EpisodeCalculation, episode.Number), "") as int?;
+                        }
+
+                        if (seasonRedirect.HasValue || episodeRedirect.HasValue)
+                        {
+                            var redirected = new Episode(episode.ShowId, seasonRedirect ?? episode.Season, episodeRedirect ?? episode.Number);
+                            redirected.Id = episode.Id;
+
+                            return redirected;
+                        }
+                    }
+                }
+            }
+            return media;
         }
 
         private (bool Passed, int Score, int MaximumScore) EvaluateResult(IndexerResult result, Media media, RequirementConfig requirement)
