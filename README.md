@@ -10,6 +10,12 @@ if %errorlevel% neq 0 (rasdial "&lt;VPN name (secondary)&gt;" &lt;user&gt; &lt;p
 Traktor.exe loglevel=Debug --urls "http://*:5000" --environment "Development"
 if %errorlevel% neq 0 exit /b %errorlevel%</pre>
 
+<h3>Commandline parameters</h3>
+<ul>
+  <li>interval=&lt;TimeSpan&gt; (how often should Traktor query trakt for updates)</li>
+  <li>--urls "binding" (Set a URL and port to bind web interface, if absent web interface is disabled.)
+</ul>
+
 <h3>appsettings.json (auto generated with default settings on first run)</h3>
 <table>
     <thead>
