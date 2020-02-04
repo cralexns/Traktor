@@ -225,9 +225,6 @@ Sync local library with Trakt.tv
                     <li>NotEqual</li>
                     <li>Minimum</li>
                     <li>Maximum</li>
-                    <li>Group</li>
-                    <li>SizeMb</li>
-                    <li>FreeText</li>
                 </ul>
             </td>
         </tr>
