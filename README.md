@@ -159,7 +159,7 @@ Sync local library with Trakt.tv
         <tr>
             <td>Scout.Requirements[].ReleaseDateDeadlineTime</td>
             <td>TimeSpan</td>
-            <td>On release day, never wait longer than this time, overrules patience setting but only on release date.</td>
+            <td>On release day, never wait longer than this time of the day, overrules patience setting but only on release date.</td>
             <td>null/null</td>
         </tr>
         <tr>
