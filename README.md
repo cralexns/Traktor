@@ -1,7 +1,7 @@
 # Traktor
 Sync local library with Trakt.tv
 
-<h3>StartTraktorWithVPN.bat
+<h3>StartTraktorWithVPN.bat<h3>
   <pre>cls
 rasdial|find /I "ExpressVPN"
 
