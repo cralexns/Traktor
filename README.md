@@ -1,15 +1,6 @@
 # Traktor
 Sync local library with Trakt.tv
 
-<h3>StartTraktorWithVPN.bat<h3>
-  <pre>cls
-rasdial|find /I "ExpressVPN"
-
-if %errorlevel% neq 0 (rasdial "&lt;VPN name&gt;" &lt;user&gt; &lt;pass&gt;)
-if %errorlevel% neq 0 (rasdial "&lt;VPN name (secondary)&gt;" &lt;user&gt; &lt;pass&gt;)
-Traktor.exe loglevel=Debug --urls "http://*:5000" --environment "Development"
-if %errorlevel% neq 0 exit /b %errorlevel%</pre>
-
 <h3>Commandline parameters</h3>
 <ul>
   <li>interval=&lt;TimeSpan&gt; (how often should Traktor query trakt for updates)</li>
@@ -286,3 +277,12 @@ if %errorlevel% neq 0 exit /b %errorlevel%</pre>
         </tr>
     </tbody>
 </table>
+
+<h3>StartTraktorWithVPN.bat<h3>
+  <pre>cls
+rasdial|find /I "ExpressVPN"
+
+if %errorlevel% neq 0 (rasdial "&lt;VPN name&gt;" &lt;user&gt; &lt;pass&gt;)
+if %errorlevel% neq 0 (rasdial "&lt;VPN name (secondary)&gt;" &lt;user&gt; &lt;pass&gt;)
+Traktor.exe loglevel=Debug --urls "http://*:5000" --environment "Development"
+if %errorlevel% neq 0 exit /b %errorlevel%</pre>
