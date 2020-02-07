@@ -135,6 +135,8 @@ namespace Traktor.Core.Domain
 
         public DateTime? LastScoutedAt { get; set; }
 
+        public DateTime? WatchedAt { get; set; }
+
         [NotMapped]
         public IReadOnlyList<Scouter.ScoutResult.Magnet> Magnets { get; set; }
 

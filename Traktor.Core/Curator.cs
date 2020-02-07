@@ -31,6 +31,10 @@ namespace Traktor.Core
             public bool ExcludeUnwatchedShowsFromCalendar { get; set; }
             public bool EnsureDownloadIntegrity { get; set; }
 
+            public TimeSpan? RemoveWatchedMoviesAfter { get; set; }
+            public TimeSpan? RemoveWatchedEpisodesAfter { get; set; }
+            public TimeSpan? RemoveWatchedSeasonsAfter { get; set; }
+
             public Dictionary<string, string> RenameFilePattern { get; set; }
 
             public Library.ImageFetchingBehavior FetchImages { get; set; }
@@ -527,8 +531,11 @@ namespace Traktor.Core
                 if (this.Config.EnsureDownloadIntegrity)
                     EnsureDownloadIntegrify();
 
+                HandleLibraryCleanup();
+
                 /*
                  IDEA
+                    1. Automatic library cleanup
                     3. Add support to Nyaa Indexer for seasonal anime numbering system. (SAO uses [Show Name - Season Name - Episode XX])
                         - Support multiple season torrents, fx.  "[anime4life.] Sword Art Online S1,S2+Extra Edition (BDRip 1080p AC3) Dual Audio"
                     ?. Implement auto update - could use https://github.com/Tyrrrz/Onova
@@ -541,6 +548,44 @@ namespace Traktor.Core
             finally
             {
                 System.Threading.Monitor.Exit(updateLock);
+            }
+        }
+
+        private void HandleLibraryCleanup()
+        {
+            if (this.Config.RemoveWatchedMoviesAfter.HasValue)
+            {
+                var moviesToRemove = this.Library.OfType<Movie>().Where(x => x.WatchedAt > DateTime.Now.Add(-this.Config.RemoveWatchedMoviesAfter.Value)).HasPath().ToList();
+                moviesToRemove.ForEach(x => this.File.DeleteMediaFiles(x));
+            }
+
+            if (this.Config.RemoveWatchedEpisodesAfter.HasValue)
+            {
+                var episodesToRemove = this.Library.OfType<Episode>().Where(x => x.WatchedAt > DateTime.Now.Add(-this.Config.RemoveWatchedEpisodesAfter.Value)).HasPath().ToList();
+                episodesToRemove.ForEach(x => this.File.DeleteMediaFiles(x));
+            }
+
+            if (this.Config.RemoveWatchedSeasonsAfter.HasValue)
+            {
+                var episodesToRemove = this.Library.OfType<Episode>().Where(x => x.WatchedAt > DateTime.Now.Add(-this.Config.RemoveWatchedSeasonsAfter.Value)).GroupBy(x => new { x.ShowId, x.Season });
+                foreach (var groupedEpisodes in episodesToRemove)
+                {
+                    var totalEpisodesInSeason = groupedEpisodes.Max(x => x.TotalEpisodesInSeason);
+                    if (totalEpisodesInSeason == 0)
+                    {
+                        totalEpisodesInSeason = this.Library.GetTotalEpisodesInSeason(groupedEpisodes.Key.ShowId, groupedEpisodes.Key.Season);
+                        foreach (var episode in groupedEpisodes)
+                            episode.TotalEpisodesInSeason = totalEpisodesInSeason;
+                    }
+
+                    if (totalEpisodesInSeason == groupedEpisodes.Count())
+                    {
+                        foreach (var episode in groupedEpisodes)
+                        {
+                            this.File.DeleteMediaFiles(episode);
+                        }
+                    }
+                }
             }
         }
 

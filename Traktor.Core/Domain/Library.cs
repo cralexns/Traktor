@@ -56,7 +56,7 @@ namespace Traktor.Core.Domain
             this.indexCol = new Dictionary<string, Media>();
             
             this.db = new LibraryDbContext();
-            this.db.Database.EnsureCreated();
+            this.db.Migrate();
 
             this.assets = new AssetService();
 
@@ -113,6 +113,22 @@ namespace Traktor.Core.Domain
 
                     changes.AddRange(SynchronizeLibrary(watchlistedMedia.OfType<Movie>().ToList(), x => x.State != Media.MediaState.Collected && x.WatchlistedAt.HasValue));
                     changes.AddRange(SynchronizeLibrary(watchlistedMedia.OfType<Episode>().ToList(), x => x.State != Media.MediaState.Collected && x.WatchlistedAt.HasValue));
+                }
+
+                if (activity.episodes.watched_at > LastActivityUpdate || activity.movies.watched_at > LastActivityUpdate)
+                {
+                    var watchedMedia = GetWatchedMedia(new DateTime(Math.Min(Math.Max(LastActivityUpdate.Ticks, activity.episodes.watched_at.Ticks), Math.Max(LastActivityUpdate.Ticks, activity.movies.watched_at.Ticks)))).ToList();
+
+                    foreach (var media in watchedMedia.OfType<Episode>().Where(x=>this.OfType<Episode>().Any(y=>y.ShowId == x.ShowId && y.Season <= x.Season && y.Number < x.Number && !y.WatchedAt.HasValue)).Distinct(new Media.EqualityComparer<Episode>()))
+                    {
+                        // If we find any media in the library from the same show that is cronologically before the watched media then we need to update watched status for the whole show.
+                        watchedMedia.AddRange(GetWatchedEpisodesForShow(media.ShowId));
+                    }
+
+                    changes.AddRange(SynchronizeLibrary(watchedMedia, null, x => !x.WatchedAt.HasValue, (e, u) => {
+                        e.WatchedAt = u.WatchedAt;
+                        return null;
+                    }));
                 }
 
                 this.LastActivityUpdate = activity.all;
@@ -522,6 +538,42 @@ namespace Traktor.Core.Domain
         //    }
         //}
 
+        private IEnumerable<Media> GetWatchedMedia(DateTime startAt)
+        {
+            var history = trakt.Many<Trakt.History>(new { start_at = startAt });
+
+            foreach (var item in history)
+            {
+                switch (item.type)
+                {
+                    case "episode":
+                        yield return new Episode(item.show.ids.ToMediaId(), item.episode.season, item.episode.number)
+                        {
+                            Title = item.episode.title,
+                            Id = item.episode.ids.ToMediaId()
+                        };
+                        break;
+                    case "movie":
+                        yield return new Movie(item.movie.ids.ToMediaId())
+                        {
+                            Title = item.movie.title
+                        };
+                        break;
+                }
+            }
+        }
+
+        public IEnumerable<Episode> GetWatchedEpisodesForShow(Media.MediaId showId)
+        {
+            var history = trakt.Many<Trakt.History>(new { type = "episodes", id = showId.Trakt });
+
+            return history.Select(x => new Episode(x.show.ids.ToMediaId(), x.episode.season, x.episode.number)
+            {
+                Title = x.episode.title,
+                WatchedAt = x.watched_at
+            });
+        }
+
         private IEnumerable<Movie> GetMoviesFromTraktCollection()
         {
             var collectedMovies = trakt.Many<Domain.Trakt.CollectedMovie>();
@@ -612,6 +664,12 @@ namespace Traktor.Core.Domain
 
             yield break;
         }
+
+        public int GetTotalEpisodesInSeason(Media.MediaId showId, int season)
+        {
+            return trakt.Many<Domain.Trakt.Episode>(new { id = showId.Trakt, season = season }).Count();
+        }
+
         private IEnumerable<T> GetMediaFromTraktCollection<T>() where T : Media
         {
             if (typeof(T) == typeof(Media))
@@ -754,5 +812,11 @@ namespace Traktor.Core.Domain
         {
             return media.Where(x => (x.Magnet != null) == hasMagnet);
         }
+
+        public static IEnumerable<T> HasPath<T>(this IEnumerable<T> media) where T : Media
+        {
+            return media.Where(x => x.RelativePath?.Any() ?? false);
+        }
+
     }
 }

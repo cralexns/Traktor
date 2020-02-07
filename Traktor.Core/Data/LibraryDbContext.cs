@@ -22,6 +22,11 @@ namespace Traktor.Core.Data
             base.OnConfiguring(optionsBuilder);
         }
 
+        public void Migrate()
+        {
+            this.Database.Migrate();
+        }
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             modelBuilder.Entity<Movie>().HasBaseType<Media>();
