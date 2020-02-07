@@ -119,16 +119,26 @@ namespace Traktor.Core.Domain
                 {
                     var watchedMedia = GetWatchedMedia(new DateTime(Math.Min(Math.Max(LastActivityUpdate.Ticks, activity.episodes.watched_at.Ticks), Math.Max(LastActivityUpdate.Ticks, activity.movies.watched_at.Ticks)))).ToList();
 
-                    foreach (var media in watchedMedia.OfType<Episode>().Where(x=>this.OfType<Episode>().Any(y=>y.ShowId == x.ShowId && y.Season <= x.Season && y.Number < x.Number && !y.WatchedAt.HasValue)).Distinct(new Media.EqualityComparer<Episode>()))
+                    foreach (var showId in watchedMedia.OfType<Episode>().Where(x=>this.OfType<Episode>().Any(y=>y.ShowId.Equals(x.ShowId) && y.Season <= x.Season && y.Number < x.Number && !y.WatchedAt.HasValue)).Select(x=>x.ShowId).Distinct().ToList())
                     {
                         // If we find any media in the library from the same show that is cronologically before the watched media then we need to update watched status for the whole show.
-                        watchedMedia.AddRange(GetWatchedEpisodesForShow(media.ShowId));
+                        watchedMedia.AddRange(GetWatchedEpisodesForShow(showId));
                     }
 
-                    changes.AddRange(SynchronizeLibrary(watchedMedia, null, x => !x.WatchedAt.HasValue, (e, u) => {
+                    Func<Media, Media, LibraryChange?> func = (e, u) =>
+                    {
                         e.WatchedAt = u.WatchedAt;
                         return null;
-                    }));
+                    };
+                    
+                    foreach (var media in watchedMedia)
+                    {
+                        var existing = this[media];
+                        if (existing != null && !existing.WatchedAt.HasValue)
+                        {
+                            existing.WatchedAt = media.WatchedAt;
+                        }
+                    }
                 }
 
                 this.LastActivityUpdate = activity.all;
@@ -550,13 +560,16 @@ namespace Traktor.Core.Domain
                         yield return new Episode(item.show.ids.ToMediaId(), item.episode.season, item.episode.number)
                         {
                             Title = item.episode.title,
-                            Id = item.episode.ids.ToMediaId()
+                            Id = item.episode.ids.ToMediaId(),
+                            ShowTitle = item.show.title,
+                            WatchedAt = item.watched_at
                         };
                         break;
                     case "movie":
                         yield return new Movie(item.movie.ids.ToMediaId())
                         {
-                            Title = item.movie.title
+                            Title = item.movie.title,
+                            WatchedAt = item.watched_at
                         };
                         break;
                 }
@@ -565,13 +578,14 @@ namespace Traktor.Core.Domain
 
         public IEnumerable<Episode> GetWatchedEpisodesForShow(Media.MediaId showId)
         {
-            var history = trakt.Many<Trakt.History>(new { type = "episodes", id = showId.Trakt });
+            var history = trakt.Many<Trakt.History>(new { type = "shows", id = showId.Trakt });
 
             return history.Select(x => new Episode(x.show.ids.ToMediaId(), x.episode.season, x.episode.number)
             {
                 Title = x.episode.title,
+                ShowTitle = x.show.title,
                 WatchedAt = x.watched_at
-            });
+            });;
         }
 
         private IEnumerable<Movie> GetMoviesFromTraktCollection()

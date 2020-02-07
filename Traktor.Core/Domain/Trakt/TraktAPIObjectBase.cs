@@ -38,7 +38,7 @@ namespace Traktor.Core.Domain.Trakt
                 {
                     result = result.Replace(
                         $"{{{property.Name}}}",
-                        property.GetValue(parameters).ToString());
+                        property.GetValue(parameters)?.ToString() ?? string.Empty);
                 }
 
                 return result;

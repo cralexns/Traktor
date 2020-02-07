@@ -6,9 +6,9 @@ namespace Traktor.Core.Domain.Trakt
 {
     public class History : TraktAPIObjectBase
     {
-        public History() : base(new TraktAPIRequest("/sync/history/{type}/{id}", "sync/history?start_at={start_at}&end_at={end_at}")) { }
+        public History() : base(new TraktAPIRequest("/sync/history/{type}/{id}", "sync/history?start_at={start_at}")) { }
 
-        public int id { get; set; }
+        public long id { get; set; }
         public DateTime watched_at { get; set; }
         public string action { get; set; }
         public string type { get; set; }
