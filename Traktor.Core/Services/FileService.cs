@@ -203,6 +203,7 @@ namespace Traktor.Core.Services
 
         public bool DeleteMediaFiles(Media media)
         {
+            bool deleted = false;
             if (media.RelativePath?.Any() ?? false)
             {
                 var mediaType = media.GetType();
@@ -212,7 +213,7 @@ namespace Traktor.Core.Services
                 {
                     if (media is Movie)
                     {
-                        return DeleteFolder(mediaPath);
+                        deleted = DeleteFolder(mediaPath);
                     }
                     else
                     {
@@ -223,12 +224,12 @@ namespace Traktor.Core.Services
                                 var filesInFolder = System.IO.Directory.GetFiles(mediaPath);
                                 if (filesInFolder.Count(x => this.Config.MediaTypes.Contains(Path.GetExtension(x).Substring(1))) == 1)
                                 {
-                                    return DeleteFolder(mediaPath);
+                                    deleted = DeleteFolder(mediaPath);
                                 }
                                 else
                                 {
                                     File.Delete(mediaFile);
-                                    return true;
+                                    deleted = true;
                                 }
                             }
                         }
@@ -236,10 +237,15 @@ namespace Traktor.Core.Services
                 }
                 catch (IOException)
                 {
-                    return false;
+                    deleted = false;
+                }
+                
+                if (deleted)
+                {
+                    media.RelativePath = new string[0];
                 }
             }
-            return false;
+            return deleted;
         }
 
         private bool DeleteFolder(string mediaPath)
