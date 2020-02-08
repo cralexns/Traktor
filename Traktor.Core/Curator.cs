@@ -170,7 +170,7 @@ namespace Traktor.Core
             Action<Library.LibraryChange> libraryCallback = null,
             Action<Scouter.ScoutResult, Media> scouterCallback = null,
             Action<IDownloadInfo> downloaderCallback = null,
-            Action<FileService.DeliveryResult, List<Media>> fileDeliveryCallback = null)
+            Action<FileService.FileResult, List<Media>> fileDeliveryCallback = null)
         {
             try
             {
@@ -193,7 +193,7 @@ namespace Traktor.Core
                 this.Downloader.OnChange += (dli) => { Downloader_OnChange(dli, downloaderCallback); };
 
                 this.File = new FileService(config.File ?? new CuratorConfiguration().File);
-                this.File.OnDelivery += (delivery, medias) => { File_OnDelivery(delivery, medias, fileDeliveryCallback); };
+                this.File.OnChange += (delivery, medias) => { File_OnChange(delivery, medias, fileDeliveryCallback); };
             }
             catch (TraktAPIException tex) when (tex.Status == TraktAPIException.APIStatus.AuthenticatedRequired)
             {
@@ -217,72 +217,94 @@ namespace Traktor.Core
             //throw new NotImplementedException();
         }
 
-        private void File_OnDelivery(FileService.DeliveryResult delivery, List<Media> medias, Action<FileService.DeliveryResult, List<Media>> fileDeliveryCallback = null)
+        private void File_OnChange(FileService.FileResult fileResult, List<Media> medias, Action<FileService.FileResult, List<Media>> fileDeliveryCallback = null)
         {
-            if (delivery.Status == FileService.DeliveryResult.DeliveryStatus.OK && (delivery.Files?.Any() ?? false))
+            switch (fileResult.Action)
             {
-                if (medias.Count == 1)
-                {
-                    medias.First().RelativePath = delivery.Files;
-                }
-                else if (medias.All(x => x is Episode))
-                {
-                    var episodes = medias.OfType<Episode>().OrderBy(x => x.Number).ToList();
-                    try
+                case FileService.FileResult.FileAction.Deliver:
+                    if (fileResult.Status == FileService.FileResult.ActionStatus.OK && (fileResult.Files?.Any() ?? false))
                     {
-                        var indexer = GetBestNumberingIndexer(episodes.First(), delivery);
-
-                        var episodeFiles = delivery.Files.ToDictionary(x => indexer.GetNumbering(x), x => x);
-                        foreach (var media in episodes)
-                        {
-                            var redirectedMedia = this.Scouter.GetRedirectedMedia(media) as Episode ?? media;
-                            media.RelativePath = new[] { episodeFiles.GetValueByKey((redirectedMedia.Season, redirectedMedia.Number, null)) ?? episodeFiles.FirstOrDefault(x=>x.Key.Season == redirectedMedia.Season && x.Key.Episode <= redirectedMedia.Number && x.Key.Range >= redirectedMedia.Number).Value };
-                        }
+                        File_OnDelivery(fileResult, medias);
                     }
-                    catch
+                    break;
+                case FileService.FileResult.FileAction.Rename:
+                    if (fileResult.Status == FileService.FileResult.ActionStatus.OK && (fileResult.Files?.Any() ?? false))
                     {
-                        var alphabeticallyOrderedFiles = new Queue<string>(delivery.Files.Where(x => this.File.Config.MediaTypes.Contains(System.IO.Path.GetExtension(x).Substring(1))).OrderBy(x => x));
-                        if (alphabeticallyOrderedFiles.Count() >= medias.Count)
-                        {
-                            foreach (var media in episodes)
-                            {
-                                media.RelativePath = new[] { alphabeticallyOrderedFiles.Dequeue() };
-                            }
-
-                            if (alphabeticallyOrderedFiles.Count > 0)
-                            {
-                                var lastEpisode = episodes.Last();
-                                lastEpisode.RelativePath = lastEpisode.RelativePath.Concat(alphabeticallyOrderedFiles).ToArray();
-                            }
-                        }
+                        medias.ForEach(x => x.RelativePath = fileResult.Files);
                     }
-                }
-
-                try
-                {
-                    var fileRenamePattern = this.Config.RenameFilePattern?.GetValueByKey(medias.FirstOrDefault().GetType().Name);
-                    if (!string.IsNullOrEmpty(fileRenamePattern))
+                    break;
+                case FileService.FileResult.FileAction.Delete:
+                    if (fileResult.Status == FileService.FileResult.ActionStatus.OK)
                     {
-                        foreach (var media in medias)
-                        {
-                            this.File.RenameMediaFileTo(media, SmartFormat.Smart.Format(fileRenamePattern, media));
-                        }
+                        medias.ForEach(x => x.RelativePath = new string[0]);
                     }
-                }
-                catch (Exception ex)
-                {
-                    // ?
-                }
-
-                this.Library.Save();
+                    break;
             }
 
-            fileDeliveryCallback?.Invoke(delivery, medias);
+            fileDeliveryCallback?.Invoke(fileResult, medias);
 
             // TODO: Some more error handling here? If we fail to correctly apply paths to media then it breaks the functionality that cleans up the library, we need to at the very least log the results of this operation.
         }
 
-        private IIndexer GetBestNumberingIndexer(Media media, FileService.DeliveryResult delivery)
+        private void File_OnDelivery(FileService.FileResult fileResult, List<Media> medias)
+        {
+            if (medias.Count == 1)
+            {
+                medias.First().RelativePath = fileResult.Files;
+            }
+            else if (medias.All(x => x is Episode))
+            {
+                var episodes = medias.OfType<Episode>().OrderBy(x => x.Number).ToList();
+                try
+                {
+                    var indexer = GetBestNumberingIndexer(episodes.First(), fileResult);
+
+                    var episodeFiles = fileResult.Files.ToDictionary(x => indexer.GetNumbering(x), x => x);
+                    foreach (var media in episodes)
+                    {
+                        var redirectedMedia = this.Scouter.GetRedirectedMedia(media) as Episode ?? media;
+                        media.RelativePath = new[] { episodeFiles.GetValueByKey((redirectedMedia.Season, redirectedMedia.Number, null)) ?? episodeFiles.FirstOrDefault(x => x.Key.Season == redirectedMedia.Season && x.Key.Episode <= redirectedMedia.Number && x.Key.Range >= redirectedMedia.Number).Value };
+                    }
+                }
+                catch
+                {
+                    var alphabeticallyOrderedFiles = new Queue<string>(fileResult.Files.Where(x => this.File.Config.MediaTypes.Contains(System.IO.Path.GetExtension(x).Substring(1))).OrderBy(x => x));
+                    if (alphabeticallyOrderedFiles.Count() >= medias.Count)
+                    {
+                        foreach (var media in episodes)
+                        {
+                            media.RelativePath = new[] { alphabeticallyOrderedFiles.Dequeue() };
+                        }
+
+                        if (alphabeticallyOrderedFiles.Count > 0)
+                        {
+                            var lastEpisode = episodes.Last();
+                            lastEpisode.RelativePath = lastEpisode.RelativePath.Concat(alphabeticallyOrderedFiles).ToArray();
+                        }
+                    }
+                }
+            }
+
+            try
+            {
+                var fileRenamePattern = this.Config.RenameFilePattern?.GetValueByKey(medias.FirstOrDefault().GetType().Name);
+                if (!string.IsNullOrEmpty(fileRenamePattern))
+                {
+                    foreach (var media in medias)
+                    {
+                        this.File.RenameMediaFileTo(media, SmartFormat.Smart.Format(fileRenamePattern, media));
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                // ?
+            }
+
+            this.Library.Save();
+        }
+
+        private IIndexer GetBestNumberingIndexer(Media media, FileService.FileResult delivery)
         {
             return Scouter.GetIndexersForMedia(media).OrderByDescending(idxr => delivery.Files.Count(x => idxr.GetNumbering(x).Episode.HasValue)).FirstOrDefault();
         }
@@ -323,7 +345,7 @@ namespace Traktor.Core
                 {
                     var indexers = this.Scouter.GetIndexersForMedia(relatedMedia.First());
                     var deliveryResult = this.File.DeliverFiles(downloadInfo, relatedMedia, indexers);
-                    if (deliveryResult.Status == FileService.DeliveryResult.DeliveryStatus.OK)
+                    if (deliveryResult.Status == FileService.FileResult.ActionStatus.OK)
                     {
                         var quality = indexers.Select(x => x.GetQualityLevel(downloadInfo.Name)).OrderByDescending(x => x).FirstOrDefault();
                         var traits = indexers.Select(x => x.GetTraits(downloadInfo.Name)).OrderByDescending(x => x.Length).FirstOrDefault();
@@ -334,7 +356,7 @@ namespace Traktor.Core
 
                         this.Downloader.Stop(downloadInfo.MagnetUri, this.File.Config.CleanUpSource, true);
                     }
-                    else if (deliveryResult.Status == FileService.DeliveryResult.DeliveryStatus.TransientError && retry < 3)
+                    else if (deliveryResult.Status == FileService.FileResult.ActionStatus.TransientError && retry < 3)
                     {
                         retry++;
                         Task.Delay(TimeSpan.FromMinutes(retry * 5)).ContinueWith((t) => { DeliverContent(downloadInfo, retry); });
@@ -391,7 +413,7 @@ namespace Traktor.Core
 
         private void Library_OnChange(Library.LibraryChange change, Action<Library.LibraryChange> libraryCallback = null)
         {
-            if (change.Status == Library.LibraryChange.Change.Removed && change.Media.State.Is(Media.MediaState.Collected) && this.Config.SynchronizeCollection && this.File.DeleteMediaFiles(change.Media))
+            if (change.Status == Library.LibraryChange.Change.Removed && change.Media.State.Is(Media.MediaState.Collected) && this.Config.SynchronizeCollection && this.File.DeleteMediaFiles(change.Media).Status == FileService.FileResult.ActionStatus.OK)
             {
                 // Deleted local media.
             }

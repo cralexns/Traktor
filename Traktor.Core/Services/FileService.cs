@@ -24,7 +24,7 @@ namespace Traktor.Core.Services
 
         public FileConfiguration Config { get; private set; }
 
-        public event Action<DeliveryResult, List<Media>> OnDelivery;
+        public event Action<FileResult, List<Media>> OnChange;
 
         public FileService(FileConfiguration config)
         {
@@ -41,18 +41,24 @@ namespace Traktor.Core.Services
             }
         }
 
-        public class DeliveryResult
+        public class FileResult
         {
-            public enum DeliveryStatus
+            public enum FileAction
+            {
+                Deliver,
+                Rename,
+                Delete
+            }
+            public enum ActionStatus
             {
                 OK,
                 Error,
                 TransientError,
                 MediaNotFound,
-                MediaAlreadyExists,
-                
+                MediaAlreadyExists
             }
-            public DeliveryStatus Status { get; set; }
+            public FileAction Action { get; set; }
+            public ActionStatus Status { get; set; }
             public string[] Files { get; set; }
             public string FolderName { get; set; }
             public string Error { get; set; }
@@ -83,10 +89,10 @@ namespace Traktor.Core.Services
             }
         }
 
-        public DeliveryResult DeliverFiles(IDownloadInfo downloadInfo, List<Media> relatedMedia, IEnumerable<Indexer.IIndexer> indexers)
+        public FileResult DeliverFiles(IDownloadInfo downloadInfo, List<Media> relatedMedia, IEnumerable<Indexer.IIndexer> indexers)
         {
             var delivery = HandleFileDelivery(downloadInfo, relatedMedia, indexers);
-            this.OnDelivery?.Invoke(delivery, relatedMedia);
+            this.OnChange?.Invoke(delivery, relatedMedia);
             return delivery;
         }
 
@@ -110,23 +116,40 @@ namespace Traktor.Core.Services
             return relatedMedia.OrderBy(x => Utility.GetDamerauLevenshteinDistance(fileCompareName, Indexer.NyaaIndexer.TransformForComparison(x.GetCanonicalName()))).FirstOrDefault();
         }
 
-        public void RenameMediaFileTo(Media media, string newFileName)
+        public FileResult RenameMediaFileTo(Media media, string newFileName)
         {
-            var mediaPath = Path.Combine(BuildMediaPath(media.GetType().Name, media.GetPhysicalName()));
-
-            List<string> newPaths = new List<string>();
-            foreach (var filepath in media.RelativePath)
+            var fileResult = new FileResult
             {
-                char[] invalidCharacters = Path.GetInvalidFileNameChars();
+                Action = FileResult.FileAction.Rename,
+                Files = media.RelativePath
+            };
 
-                var newPath = Path.Combine(Path.GetDirectoryName(filepath), $"{new string(newFileName.Where(c => !invalidCharacters.Contains(c)).ToArray())}{Path.GetExtension(filepath)}");
-                File.Move(Path.Combine(mediaPath, filepath), Path.Combine(mediaPath, newPath));
-                newPaths.Add(newPath);
+            var mediaPath = Path.Combine(BuildMediaPath(media.GetType().Name, media.GetPhysicalName()));
+            try
+            {
+                List<string> newPaths = new List<string>();
+                foreach (var filepath in media.RelativePath)
+                {
+                    char[] invalidCharacters = Path.GetInvalidFileNameChars();
+
+                    var newPath = Path.Combine(Path.GetDirectoryName(filepath), $"{new string(newFileName.Where(c => !invalidCharacters.Contains(c)).ToArray())}{Path.GetExtension(filepath)}");
+                    File.Move(Path.Combine(mediaPath, filepath), Path.Combine(mediaPath, newPath));
+                    newPaths.Add(newPath);
+                }
+
+                fileResult.Files = newPaths.ToArray();
+                fileResult.Status = FileResult.ActionStatus.OK;
             }
-            media.RelativePath = newPaths.ToArray();
+            catch (Exception ex)
+            {
+                fileResult.Status = FileResult.ActionStatus.Error;
+            }
+
+            this.OnChange?.Invoke(fileResult, new List<Media> { media });
+            return fileResult;
         }
 
-        private DeliveryResult HandleFileDelivery(IDownloadInfo downloadInfo, List<Media> relatedMedia, IEnumerable<Indexer.IIndexer> indexers)
+        private FileResult HandleFileDelivery(IDownloadInfo downloadInfo, List<Media> relatedMedia, IEnumerable<Indexer.IIndexer> indexers)
         {
             var physicalName = GetPhysicalName(relatedMedia);
 
@@ -185,15 +208,16 @@ namespace Traktor.Core.Services
 
                 if (ex is IOException ioEx && ((ioEx.HResult & 0x0000FFFF) == 32))
                 {
-                    return new DeliveryResult { Status = DeliveryResult.DeliveryStatus.TransientError, Error = ioEx.ToString(), FolderName = physicalName };
+                    return new FileResult { Status = FileResult.ActionStatus.TransientError, Error = ioEx.ToString(), FolderName = physicalName };
                 }
 
-                return new DeliveryResult { Status = DeliveryResult.DeliveryStatus.Error, Error = ex.ToString(), FolderName = physicalName };
+                return new FileResult { Status = FileResult.ActionStatus.Error, Error = ex.ToString(), FolderName = physicalName };
             }
 
-            var delivery = new DeliveryResult
+            var delivery = new FileResult
             {
-                Status = filesMoved.Any(x => Path.GetExtension(x.NewPath) != ".sub") ? DeliveryResult.DeliveryStatus.OK : DeliveryResult.DeliveryStatus.MediaNotFound,
+                Action = FileResult.FileAction.Deliver,
+                Status = filesMoved.Any(x => Path.GetExtension(x.NewPath) != ".sub") ? FileResult.ActionStatus.OK : FileResult.ActionStatus.MediaNotFound,
                 Files = filesMoved.OrderByDescending(x=>x.Size).Select(x=> Path.GetRelativePath(mediaPath, x.NewPath)).ToArray(),
                 FolderName = physicalName
             };
@@ -201,13 +225,22 @@ namespace Traktor.Core.Services
             return delivery;
         }
 
-        public bool DeleteMediaFiles(Media media)
+        public FileResult DeleteMediaFiles(Media media)
         {
-            bool deleted = false;
+            var fileResult = new FileResult
+            {
+                Action = FileResult.FileAction.Delete,
+                Files = media.RelativePath,
+                FolderName = media.GetPhysicalName(),
+                Status = FileResult.ActionStatus.MediaNotFound
+            };
+
             if (media.RelativePath?.Any() ?? false)
             {
+                bool deleted = false;
+
                 var mediaType = media.GetType();
-                var mediaPath = Path.Combine(BuildMediaPath(mediaType.Name, media.GetPhysicalName()));
+                var mediaPath = Path.Combine(BuildMediaPath(mediaType.Name, fileResult.FolderName));
 
                 try
                 {
@@ -235,17 +268,22 @@ namespace Traktor.Core.Services
                         }
                     }
                 }
-                catch (IOException)
+                catch (IOException ioEx)
                 {
                     deleted = false;
+                    fileResult.Error = ioEx.ToString();
+                    fileResult.Status = FileResult.ActionStatus.Error;
+                    return fileResult;
                 }
                 
                 if (deleted)
                 {
-                    media.RelativePath = new string[0];
+                    fileResult.Status = FileResult.ActionStatus.OK;
                 }
             }
-            return deleted;
+
+            this.OnChange?.Invoke(fileResult, new List<Media> { media });
+            return fileResult;
         }
 
         private bool DeleteFolder(string mediaPath)

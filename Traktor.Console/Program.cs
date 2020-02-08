@@ -179,7 +179,7 @@ namespace ConsoleApp2
                             }
                         }
                     }
-                return true;
+                    return true;
                 default:
                     return true;
             }
@@ -236,13 +236,29 @@ namespace ConsoleApp2
                 downloadInfo =>
                 {
                     Log.Information($"[Downloader] {downloadInfo.State}: {downloadInfo.Name} ({Math.Round(downloadInfo.Progress, 2)}%) [L={downloadInfo.Leechs}, S={downloadInfo.Seeds} ({downloadInfo.Peers})]");
-                }, 
-                (deliveryResult, medias) =>
+                },
+                (fileResult, medias) =>
                 {
-                    Log.Information($"[Delivery] {deliveryResult.Files?.Count() ?? 0} files moved to folder: '{deliveryResult.FolderName}' = {deliveryResult.Status}");
-                    if (deliveryResult.Status == FileService.DeliveryResult.DeliveryStatus.Error)
-                        Log.Error($" .. {deliveryResult.Error}");
-
+                    switch (fileResult.Action)
+                    {
+                        case FileService.FileResult.FileAction.Deliver:
+                            Log.Information($"[Delivery] {fileResult.Files?.Count() ?? 0} files moved to folder: '{fileResult.FolderName}' = {fileResult.Status}");
+                            if (fileResult.Status == FileService.FileResult.ActionStatus.Error)
+                                Log.Error($" .. {fileResult.Error}");
+                            break;
+                        case FileService.FileResult.FileAction.Rename:
+                            Log.Information($"[Rename] {fileResult.Files?.Count() ?? 0} files renamed in folder '{fileResult.FolderName}' = {fileResult.Status}");
+                            if (fileResult.Status == FileService.FileResult.ActionStatus.Error)
+                                Log.Error($" .. {fileResult.Error}");
+                            break;
+                        case FileService.FileResult.FileAction.Delete:
+                            Log.Information($"[Delete] {fileResult.Files?.Count() ?? 0} files deleted in folder '{fileResult.FolderName}' = {fileResult.Status}");
+                            if (fileResult.Status == FileService.FileResult.ActionStatus.Error)
+                                Log.Error($" .. {fileResult.Error}");
+                            break;
+                        default:
+                            break;
+                    }
                 }))
             {
                 case Curator.CuratorResult.Started:
