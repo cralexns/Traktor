@@ -89,9 +89,9 @@ namespace Traktor.Core.Services
             }
         }
 
-        public FileResult DeliverFiles(IDownloadInfo downloadInfo, List<Media> relatedMedia, IEnumerable<Indexer.IIndexer> indexers)
+        public FileResult DeliverFiles(IDownloadInfo downloadInfo, List<Media> relatedMedia)
         {
-            var delivery = HandleFileDelivery(downloadInfo, relatedMedia, indexers);
+            var delivery = HandleFileDelivery(downloadInfo, relatedMedia);
             this.OnChange?.Invoke(delivery, relatedMedia);
             return delivery;
         }
@@ -121,10 +121,11 @@ namespace Traktor.Core.Services
             var fileResult = new FileResult
             {
                 Action = FileResult.FileAction.Rename,
-                Files = media.RelativePath
+                Files = media.RelativePath,
+                FolderName = media.GetPhysicalName()
             };
 
-            var mediaPath = Path.Combine(BuildMediaPath(media.GetType().Name, media.GetPhysicalName()));
+            var mediaPath = Path.Combine(BuildMediaPath(media.GetType().Name, fileResult.FolderName));
             try
             {
                 List<string> newPaths = new List<string>();
@@ -149,7 +150,7 @@ namespace Traktor.Core.Services
             return fileResult;
         }
 
-        private FileResult HandleFileDelivery(IDownloadInfo downloadInfo, List<Media> relatedMedia, IEnumerable<Indexer.IIndexer> indexers)
+        private FileResult HandleFileDelivery(IDownloadInfo downloadInfo, List<Media> relatedMedia)
         {
             var physicalName = GetPhysicalName(relatedMedia);
 

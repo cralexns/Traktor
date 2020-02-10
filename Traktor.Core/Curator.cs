@@ -231,19 +231,21 @@ namespace Traktor.Core
                     if (fileResult.Status == FileService.FileResult.ActionStatus.OK && (fileResult.Files?.Any() ?? false))
                     {
                         medias.ForEach(x => x.RelativePath = fileResult.Files);
+                        this.Library.Save();
                     }
                     break;
                 case FileService.FileResult.FileAction.Delete:
                     if (fileResult.Status == FileService.FileResult.ActionStatus.OK)
                     {
                         medias.ForEach(x => x.RelativePath = new string[0]);
+                        this.Library.Save();
                     }
                     break;
             }
 
             fileDeliveryCallback?.Invoke(fileResult, medias);
 
-            // TODO: Some more error handling here? If we fail to correctly apply paths to media then it breaks the functionality that cleans up the library, we need to at the very least log the results of this operation.
+            
         }
 
         private void File_OnDelivery(FileService.FileResult fileResult, List<Media> medias)
@@ -285,21 +287,7 @@ namespace Traktor.Core
                 }
             }
 
-            try
-            {
-                var fileRenamePattern = this.Config.RenameFilePattern?.GetValueByKey(medias.FirstOrDefault().GetType().Name);
-                if (!string.IsNullOrEmpty(fileRenamePattern))
-                {
-                    foreach (var media in medias)
-                    {
-                        this.File.RenameMediaFileTo(media, SmartFormat.Smart.Format(fileRenamePattern, media));
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                // ?
-            }
+            // TODO: Some more error handling here? If we fail to correctly apply paths to media then it breaks the functionality that cleans up the library, we need to at the very least log the results of this operation.
 
             this.Library.Save();
         }
@@ -343,10 +331,27 @@ namespace Traktor.Core
             {
                 if (relatedMedia?.Any(x => x.State != Media.MediaState.Collected) ?? false)
                 {
-                    var indexers = this.Scouter.GetIndexersForMedia(relatedMedia.First());
-                    var deliveryResult = this.File.DeliverFiles(downloadInfo, relatedMedia, indexers);
+                    var deliveryResult = this.File.DeliverFiles(downloadInfo, relatedMedia);
                     if (deliveryResult.Status == FileService.FileResult.ActionStatus.OK)
                     {
+                        try
+                        {
+                            var fileRenamePattern = this.Config.RenameFilePattern?.GetValueByKey(relatedMedia.FirstOrDefault().GetType().Name);
+                            if (!string.IsNullOrEmpty(fileRenamePattern))
+                            {
+                                foreach (var media in relatedMedia)
+                                {
+                                    this.File.RenameMediaFileTo(media, SmartFormat.Smart.Format(fileRenamePattern, media));
+                                }
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            // ?
+                        }
+
+                        var indexers = this.Scouter.GetIndexersForMedia(relatedMedia.First());
+
                         var quality = indexers.Select(x => x.GetQualityLevel(downloadInfo.Name)).OrderByDescending(x => x).FirstOrDefault();
                         var traits = indexers.Select(x => x.GetTraits(downloadInfo.Name)).OrderByDescending(x => x.Length).FirstOrDefault();
 
