@@ -263,6 +263,7 @@ namespace ConsoleApp2
             {
                 case Curator.CuratorResult.Started:
                     Log.Debug("Traktor started.");
+                    curator.OnCuratorEvent += (x) => Log.Information($"[{x.Type}] {x.Message}");
                     return true;
                 case Curator.CuratorResult.TraktAuthenticationRequired:
                     if (AuthenticateTrakt(ts))

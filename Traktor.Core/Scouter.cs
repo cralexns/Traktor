@@ -246,10 +246,10 @@ namespace Traktor.Core
                 }
             }
 
-            public void RemoveBannedLink(Uri link)
+            public void RemoveBannedLinks(params Uri[] links)
             {
-                if (link != null)
-                    this.Results = this.Results.Where(x => x.Link != link).ToList();
+                if (links.Any())
+                    this.Results = this.Results.Where(x => !links.Contains(x.Link)).ToList();
             }
         }
 

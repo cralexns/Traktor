@@ -165,6 +165,19 @@ namespace Traktor.Core
         public IDownloader Downloader { get; set; }
         public FileService File { get; set; }
 
+        public event Action<CuratorEvent> OnCuratorEvent;
+
+        public class CuratorEvent
+        {
+            public enum EventType
+            {
+                DownloadIntegrity,
+                LibraryCleanup
+            }
+            public EventType Type { get; set; }
+            public string Message { get; set; }
+        }
+
         public CuratorResult Initialize(CuratorConfiguration config,
             Action<Exception> exceptionCallback,
             Action<Library.LibraryChange> libraryCallback = null,
@@ -456,7 +469,7 @@ namespace Traktor.Core
             }
         }
 
-        private void ScoutAndStartDownloads(List<Media> mediaToScout = null, Uri bannedUri = null)
+        private void ScoutAndStartDownloads(List<Media> mediaToScout = null, params Uri[] bannedUris)
         {
             this.lastScoutDate = DateTime.Now;
 
@@ -468,7 +481,7 @@ namespace Traktor.Core
                 foreach (var episode in season.HasMagnet(false))
                 {
                     var scoutResult = this.Scouter.Scout(episode);
-                    scoutResult.RemoveBannedLink(bannedUri);
+                    scoutResult.RemoveBannedLinks(bannedUris);
 
                     switch (scoutResult.Status)
                     {
@@ -507,7 +520,7 @@ namespace Traktor.Core
             foreach (var media in mediaToScout.OfType<Movie>().State(Media.MediaState.Available).HasMagnet(false))
             {
                 var scoutResult = this.Scouter.Scout(media);
-                scoutResult.RemoveBannedLink(bannedUri);
+                scoutResult.RemoveBannedLinks(bannedUris);
 
                 switch (scoutResult.Status)
                 {
@@ -562,7 +575,8 @@ namespace Traktor.Core
 
                 /*
                  IDEA
-                    1. Automatic library cleanup
+                    1. Automatic library cleanup (in testing)
+                    2. Add some way to send generic events outside of curator to better log behaviours in fx. Cleanup, Integrity etc.
                     3. Add support to Nyaa Indexer for seasonal anime numbering system. (SAO uses [Show Name - Season Name - Episode XX])
                         - Support multiple season torrents, fx.  "[anime4life.] Sword Art Online S1,S2+Extra Edition (BDRip 1080p AC3) Dual Audio"
                     ?. Implement auto update - could use https://github.com/Tyrrrz/Onova
@@ -582,31 +596,42 @@ namespace Traktor.Core
         {
             if (this.Config.RemoveWatchedMoviesAfter.HasValue)
             {
-                var moviesToRemove = this.Library.OfType<Movie>().Where(x => x.WatchedAt > DateTime.Now.Add(-this.Config.RemoveWatchedMoviesAfter.Value)).HasPath().ToList();
-                moviesToRemove.ForEach(x => this.File.DeleteMediaFiles(x));
+                var moviesToRemove = this.Library.OfType<Movie>().HasPath().Where(x => x.WatchedAt < DateTime.Now.Add(-this.Config.RemoveWatchedMoviesAfter.Value)).ToList();
+                if (moviesToRemove.Any())
+                {
+                    TriggerCuratorEvent(CuratorEvent.EventType.LibraryCleanup, $"Found {moviesToRemove} movies qualifying for cleanup..");
+                    moviesToRemove.ForEach(x => this.File.DeleteMediaFiles(x));
+                }
+                
             }
 
             if (this.Config.RemoveWatchedEpisodesAfter.HasValue)
             {
-                var episodesToRemove = this.Library.OfType<Episode>().Where(x => x.WatchedAt > DateTime.Now.Add(-this.Config.RemoveWatchedEpisodesAfter.Value)).HasPath().ToList();
-                episodesToRemove.ForEach(x => this.File.DeleteMediaFiles(x));
+                var episodesToRemove = this.Library.OfType<Episode>().HasPath().Where(x => x.WatchedAt < DateTime.Now.Add(-this.Config.RemoveWatchedEpisodesAfter.Value)).ToList();
+                if (episodesToRemove.Any())
+                {
+                    TriggerCuratorEvent(CuratorEvent.EventType.LibraryCleanup, $"Found {episodesToRemove} episodes qualifying for cleanup..");
+                    episodesToRemove.ForEach(x => this.File.DeleteMediaFiles(x));
+                }
+                
             }
 
             if (this.Config.RemoveWatchedSeasonsAfter.HasValue)
             {
-                var episodesToRemove = this.Library.OfType<Episode>().Where(x => x.WatchedAt > DateTime.Now.Add(-this.Config.RemoveWatchedSeasonsAfter.Value)).GroupBy(x => new { x.ShowId, x.Season });
+                var episodesToRemove = this.Library.OfType<Episode>().HasPath().Where(x => x.WatchedAt < DateTime.Now.Add(-this.Config.RemoveWatchedSeasonsAfter.Value)).GroupBy(x => new { x.ShowId.Trakt, x.Season });
                 foreach (var groupedEpisodes in episodesToRemove)
                 {
                     var totalEpisodesInSeason = groupedEpisodes.Max(x => x.TotalEpisodesInSeason);
                     if (totalEpisodesInSeason == 0)
                     {
-                        totalEpisodesInSeason = this.Library.GetTotalEpisodesInSeason(groupedEpisodes.Key.ShowId, groupedEpisodes.Key.Season);
+                        totalEpisodesInSeason = this.Library.GetTotalEpisodesInSeason(groupedEpisodes.FirstOrDefault().ShowId, groupedEpisodes.Key.Season);
                         foreach (var episode in groupedEpisodes)
                             episode.TotalEpisodesInSeason = totalEpisodesInSeason;
                     }
 
                     if (totalEpisodesInSeason == groupedEpisodes.Count())
                     {
+                        TriggerCuratorEvent(CuratorEvent.EventType.LibraryCleanup, $"Found a full season {groupedEpisodes.Key.Season} of {groupedEpisodes.FirstOrDefault().ShowTitle} ({groupedEpisodes.Count()} episodes) qualifying for cleanup..");
                         foreach (var episode in groupedEpisodes)
                         {
                             this.File.DeleteMediaFiles(episode);
@@ -622,6 +647,7 @@ namespace Traktor.Core
             public IDownloadInfo.DownloadState State { get; set; }
             public DateTime Updated { get; set; }
             public bool RestartedOnce { get; set; }
+            public bool Abandoned { get; set; }
         }
 
         private ConcurrentDictionary<Uri, DownloadHistory> dlhistory = new ConcurrentDictionary<Uri, DownloadHistory>();
@@ -632,7 +658,7 @@ namespace Traktor.Core
             foreach (var dli in allDownloads)
             {
                 var relatedMedia = this.Library.GetMediaWithMagnet(dli.MagnetUri);
-                var patience = (relatedMedia.Max(x => x.Release) < DateTime.Now.AddMonths(-6)) ? TimeSpan.FromDays(1) : TimeSpan.FromMinutes(30);
+                var patience = (relatedMedia.Max(x => x.Release) < DateTime.Now.AddMonths(-6)) ? TimeSpan.FromHours(5) : TimeSpan.FromMinutes(30);
 
                 var isBroken = false;
                 var history = dlhistory.GetOrAdd(dli.MagnetUri, new DownloadHistory { Size = dli.Size, Updated = DateTime.Now, State = dli.State });
@@ -665,19 +691,22 @@ namespace Traktor.Core
                 {
                     if (!history.RestartedOnce)
                     {
+                        TriggerCuratorEvent(CuratorEvent.EventType.DownloadIntegrity, $"{dli.Name} appears stalled, restarting download..");
                         this.Downloader.Restart(dli.MagnetUri, true);
                         history.RestartedOnce = true;
                         history.Updated = DateTime.Now;
                     }
                     else
                     {
-                        dlhistory.Remove(dli.MagnetUri, out var discard);
+                        TriggerCuratorEvent(CuratorEvent.EventType.DownloadIntegrity, $"{dli.Name} appears stalled even after restarting, looking for substitute and abandoning magnet..");
+                        history.Abandoned = true;
+
                         this.Downloader.Stop(dli.MagnetUri, true, true);
 
                         var affectedMedia = this.Library.GetMediaWithMagnet(dli.MagnetUri);
                         if (affectedMedia.Any())
                         {
-                            ScoutAndStartDownloads(affectedMedia, dli.MagnetUri);
+                            ScoutAndStartDownloads(affectedMedia, dlhistory.Where(x=>x.Value.Abandoned).Select(x=>x.Key).ToArray());
                         }
                     }
                 }
@@ -723,6 +752,11 @@ namespace Traktor.Core
             }
 
             this.Library.Remove(media);
+        }
+
+        private void TriggerCuratorEvent(CuratorEvent.EventType type, string message)
+        {
+            this.OnCuratorEvent?.Invoke(new CuratorEvent { Type = type, Message = message });
         }
 
         public void Dispose()
