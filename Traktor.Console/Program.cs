@@ -130,7 +130,7 @@ namespace ConsoleApp2
                 Log.Debug($"Curator => {update}");
             else Log.Information($"Curator => {update}");
 
-            if (update == Curator.CuratorResult.Error)
+            if (update.Is(Curator.CuratorResult.Error, Curator.CuratorResult.NotInitialized, Curator.CuratorResult.Stopped, Curator.CuratorResult.TraktAuthenticationRequired))
             {
                 Environment.Exit(1);
             }
