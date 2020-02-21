@@ -736,6 +736,8 @@ namespace Traktor.Core
             if (media.Magnet != null && this.Downloader.All().Any(x=>x.MagnetUri == media.Magnet))
             {
                 this.Downloader.Stop(media.Magnet, true, true);
+                media.SetMagnet(null, true);
+
                 this.ScoutAndStartDownloads(new List<Media> { media }, media.Magnet);
             }
         }
