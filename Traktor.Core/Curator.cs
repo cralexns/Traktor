@@ -659,7 +659,7 @@ namespace Traktor.Core
                 var relatedMedia = this.Library.GetMediaWithMagnet(dli.MagnetUri);
                 var patience = (relatedMedia.Max(x => x.Release) < DateTime.Now.AddMonths(-6)) ? TimeSpan.FromHours(5) : TimeSpan.FromMinutes(30);
 
-                patience = Math.Min(1, ((dli.Progress/100) * 10)) * patience;
+                patience *= Math.Max(1, ((dli.Progress/100) * 10));
 
                 var isBroken = false;
                 var history = dlhistory.GetOrAdd(dli.MagnetUri, new DownloadHistory { Size = dli.Size, Updated = DateTime.Now, State = dli.State });

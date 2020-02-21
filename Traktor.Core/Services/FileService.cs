@@ -122,7 +122,7 @@ namespace Traktor.Core.Services
             {
                 Action = FileResult.FileAction.Rename,
                 Files = media.RelativePath,
-                FolderName = media.GetPhysicalName()
+                FolderName = StripInvalidCharacters(media.GetPhysicalName())
             };
 
             var mediaPath = Path.Combine(BuildMediaPath(media.GetType().Name, fileResult.FolderName));
@@ -151,12 +151,15 @@ namespace Traktor.Core.Services
             return fileResult;
         }
 
+        private string StripInvalidCharacters(string filePath)
+        {
+            char[] invalidCharacters = Path.GetInvalidFileNameChars();
+            return new string(filePath.Where(c => !invalidCharacters.Contains(c)).ToArray());
+        }
+
         private FileResult HandleFileDelivery(IDownloadInfo downloadInfo, List<Media> relatedMedia)
         {
-            var physicalName = GetPhysicalName(relatedMedia);
-
-            char[] invalidCharacters = Path.GetInvalidFileNameChars();
-            physicalName = new string(physicalName.Where(c => !invalidCharacters.Contains(c)).ToArray());
+            var physicalName = StripInvalidCharacters(GetPhysicalName(relatedMedia));
 
             var type = GetMediaType(relatedMedia);
             var mediaPath = BuildMediaPath(type.Name, physicalName);
