@@ -51,7 +51,8 @@ namespace Traktor.Web.Controllers
             CancelDownload,
             Scout,
             Remove,
-            Restart
+            Restart,
+            TryAnotherMagnet
         }
 
         [Route("{dbId}/{actionType}")]
@@ -76,6 +77,9 @@ namespace Traktor.Web.Controllers
                         break;
                     case MediaAction.Restart:
                         Curator.Restart(mediaItem);
+                        break;
+                    case MediaAction.TryAnotherMagnet:
+                        Curator.TryAnotherMagnet(mediaItem);
                         break;
                 }
             }

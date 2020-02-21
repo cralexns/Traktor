@@ -18,6 +18,8 @@ namespace ConsoleApp2
     class Program
     {
         public static TimeSpan Interval { get; set; }
+        public static bool KeepAlive { get; set; }
+        public static string ConnectivityScriptPath { get; set; }
         private static Mutex mutex = null;
         static void Main(string[] args)
         {
@@ -40,6 +42,8 @@ namespace ConsoleApp2
                             .Build();
 
                 Interval = config.GetValue<TimeSpan?>("interval") ?? TimeSpan.FromMinutes(5);
+                KeepAlive = config.GetValue<bool>("keepalive");
+                ConnectivityScriptPath = config.GetValue<string>("connectscript");
 
                 var logLevel = config.GetValue<string>("loglevel");
                 if (!string.IsNullOrEmpty(logLevel))
@@ -90,31 +94,54 @@ namespace ConsoleApp2
                         Log.Information($"Running Traktor.Web @ {string.Join(", ", startup.Addresses)}");
                     }
 
-                    Log.Information($"Scheduling update every {Interval} ..");
-                    // Schedule update.
-                    using (var timer = new Timer((t) =>
-                    {
-                        if (config.GetValue<bool>("disable-update"))
-                            return;
-
-                        UpdateCurator(curator);
-                        if (logLevelSwitch.MinimumLevel == Serilog.Events.LogEventLevel.Debug)
-                        {
-                            PrintDownloads(curator);
-                        }
-                    }, null, TimeSpan.FromSeconds(10), Interval))
-                    {
-                        while (HandleInput(curator))
-                        {
-                            // Keep alive waiting for input.
-                        }
-                    }
+                    ScheduleCuratorUpdates(curator);
                 }
             }
             catch (Exception ex)
             {
                 LogException(ex);
                 throw;
+            }
+        }
+
+        private static void ScheduleCuratorUpdates(Curator curator)
+        {
+            Log.Information($"Scheduling update every {Interval} ..");
+            // Schedule update.
+            using (var timer = new Timer((t) =>
+            {
+                try
+                {
+                    UpdateCurator(curator);
+                }
+                catch (Exception ex)
+                {
+                    if (!string.IsNullOrEmpty(ConnectivityScriptPath) && (ex.GetBaseException() is System.Net.Sockets.SocketException sEx && sEx.ErrorCode == 10013) || (ex is Traktor.Core.Services.Indexer.RarbgIndexer.RarBgTokenException rEx))
+                    {
+                        Log.Error($"Caught exception: {ex.Message} - potential connectivity issue, launch connectivity script: {ConnectivityScriptPath}");
+                        var process = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(ConnectivityScriptPath) { CreateNoWindow = true });
+                        process.OutputDataReceived += (object sender, System.Diagnostics.DataReceivedEventArgs e) => Log.Debug($"[ConnectivityScript:Output] {e.Data}");
+                        process.ErrorDataReceived += (object sender, System.Diagnostics.DataReceivedEventArgs e) => Log.Debug($"[ConnectivityScript:Error] {e.Data}");
+                        process.WaitForExit();
+                        return;
+                    }
+
+                    if (!KeepAlive)
+                        throw;
+
+                    Log.Error($"Caught exception: {ex.Message}");
+                }
+                
+                //if (logLevelSwitch.MinimumLevel == Serilog.Events.LogEventLevel.Debug)
+                //{
+                //    PrintDownloads(curator);
+                //}
+            }, null, TimeSpan.FromSeconds(10), Interval))
+            {
+                while (HandleInput(curator))
+                {
+                    // Keep alive waiting for input.
+                }
             }
         }
 

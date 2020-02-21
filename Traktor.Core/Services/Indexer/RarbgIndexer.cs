@@ -14,6 +14,14 @@ namespace Traktor.Core.Services.Indexer
 {
     public class RarbgIndexer : IndexerBase, IIndexer
     {
+        public class RarBgTokenException : Exception
+        {
+            public RarBgTokenException() : base("Failed to acquire token.")
+            {
+
+            }
+        }
+
         public string Name => "Rarbg";
         private enum QueryType
         {
@@ -39,9 +47,9 @@ namespace Traktor.Core.Services.Indexer
         public RarbgIndexer()
         {
             this.client = new RestClient(ApiUrl);
-            if (string.IsNullOrEmpty(Token) && !GetToken())
+            if (string.IsNullOrEmpty(Token))
             {
-                throw new Exception("No token.. :(");
+                GetToken();
             }
         }
 
@@ -58,7 +66,7 @@ namespace Traktor.Core.Services.Indexer
                 Token = response.Data.token;
                 return true;
             }
-            return false;
+            throw new RarBgTokenException();
         }
 
         private async Task<IRestResponse<T>> MakeRequest<T>(RestRequest request, bool handleTokenError = true) where T : RarBgBaseObject, new()

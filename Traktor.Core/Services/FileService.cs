@@ -144,6 +144,7 @@ namespace Traktor.Core.Services
             catch (Exception ex)
             {
                 fileResult.Status = FileResult.ActionStatus.Error;
+                fileResult.Error = ex.ToString();
             }
 
             this.OnChange?.Invoke(fileResult, new List<Media> { media });

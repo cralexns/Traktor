@@ -374,7 +374,7 @@ namespace Traktor.Core.Services.Downloader
                 {
                     try
                     {
-                        if (Directory.Exists(torrentManager.SavePath))
+                        if (torrentManager.SavePath != this.DownloadPath && Directory.Exists(torrentManager.SavePath))
                             Directory.Delete(torrentManager.SavePath, true);
                         break;
                     }

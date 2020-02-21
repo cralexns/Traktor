@@ -575,9 +575,8 @@ namespace Traktor.Core
 
                 /*
                  IDEA
-                    1. Automatic library cleanup (in testing)
-                    2. Add some way to send generic events outside of curator to better log behaviours in fx. Cleanup, Integrity etc.
-                    3. Add support to Nyaa Indexer for seasonal anime numbering system. (SAO uses [Show Name - Season Name - Episode XX])
+                    1. Look into keeping the main executable running when Traktor crashes and add functionality to web interface to restart Traktor - this way you can always see the log!
+                    4. Add support to Nyaa Indexer for seasonal anime numbering system. (SAO uses [Show Name - Season Name - Episode XX])
                         - Support multiple season torrents, fx.  "[anime4life.] Sword Art Online S1,S2+Extra Edition (BDRip 1080p AC3) Dual Audio"
                     ?. Implement auto update - could use https://github.com/Tyrrrz/Onova
                  */
@@ -660,6 +659,8 @@ namespace Traktor.Core
                 var relatedMedia = this.Library.GetMediaWithMagnet(dli.MagnetUri);
                 var patience = (relatedMedia.Max(x => x.Release) < DateTime.Now.AddMonths(-6)) ? TimeSpan.FromHours(5) : TimeSpan.FromMinutes(30);
 
+                patience = Math.Min(1, ((dli.Progress/100) * 10)) * patience;
+
                 var isBroken = false;
                 var history = dlhistory.GetOrAdd(dli.MagnetUri, new DownloadHistory { Size = dli.Size, Updated = DateTime.Now, State = dli.State });
 
@@ -728,6 +729,15 @@ namespace Traktor.Core
         public void ForceScout(Media media)
         {
             this.ScoutAndStartDownloads(new List<Media>() { media });
+        }
+
+        public void TryAnotherMagnet(Media media)
+        {
+            if (media.Magnet != null && this.Downloader.All().Any(x=>x.MagnetUri == media.Magnet))
+            {
+                this.Downloader.Stop(media.Magnet, true, true);
+                this.ScoutAndStartDownloads(new List<Media> { media }, media.Magnet);
+            }
         }
 
         public void Restart(Media media)
