@@ -119,7 +119,7 @@ namespace ConsoleApp2
                     if (!string.IsNullOrEmpty(ConnectivityScriptPath) && (ex.GetBaseException() is System.Net.Sockets.SocketException sEx && sEx.ErrorCode == 10013) || (ex is Traktor.Core.Services.Indexer.RarbgIndexer.RarBgTokenException rEx))
                     {
                         Log.Error($"Caught exception: {ex.Message} - potential connectivity issue, launch connectivity script: {ConnectivityScriptPath}");
-                        var process = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(ConnectivityScriptPath) { CreateNoWindow = true });
+                        var process = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(ConnectivityScriptPath) { CreateNoWindow = true, RedirectStandardInput = true, RedirectStandardError = true });
                         process.OutputDataReceived += (object sender, System.Diagnostics.DataReceivedEventArgs e) => Log.Debug($"[ConnectivityScript:Output] {e.Data}");
                         process.ErrorDataReceived += (object sender, System.Diagnostics.DataReceivedEventArgs e) => Log.Debug($"[ConnectivityScript:Error] {e.Data}");
                         process.WaitForExit();
