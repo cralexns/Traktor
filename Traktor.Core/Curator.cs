@@ -274,19 +274,19 @@ namespace Traktor.Core
                 {
                     var indexer = GetBestNumberingIndexer(episodes.First(), fileResult);
 
-                    var episodeFiles = fileResult.Files.ToDictionary(x => indexer.GetNumbering(x), x => x);
+                    var episodeFiles = fileResult.Files.Select(x=>new { Numbering = indexer.GetNumbering(x), File = x }).GroupBy(x=>x.Numbering).ToDictionary(x => x.Key, x => x.Select(y=>y.File).ToArray());
                     foreach (var media in episodes)
                     {
                         var redirectedMedia = this.Scouter.GetRedirectedMedia(media) as Episode ?? media;
-                        media.RelativePath = new[] { episodeFiles.GetValueByKey((redirectedMedia.Season, redirectedMedia.Number, null)) ?? episodeFiles.FirstOrDefault(x => x.Key.Season == redirectedMedia.Season && x.Key.Episode <= redirectedMedia.Number && x.Key.Range >= redirectedMedia.Number).Value };
+                        media.RelativePath = episodeFiles.GetValueByKey((redirectedMedia.Season, redirectedMedia.Number, null)) ?? episodeFiles.FirstOrDefault(x => x.Key.Season == redirectedMedia.Season && x.Key.Episode <= redirectedMedia.Number && x.Key.Range >= redirectedMedia.Number).Value;
                     }
                 }
                 catch
                 {
-                    var alphabeticallyOrderedFiles = new Queue<string>(fileResult.Files.Where(x => this.File.Config.MediaTypes.Contains(System.IO.Path.GetExtension(x).Substring(1))).OrderBy(x => x));
+                    var alphabeticallyOrderedFiles = new Queue<string>(fileResult.Files.Where(x => this.File.Config.MediaTypes.Contains(System.IO.Path.GetExtension(x).Substring(1))).OrderByDescending(x => x));
                     if (alphabeticallyOrderedFiles.Count() >= medias.Count)
                     {
-                        foreach (var media in episodes)
+                        foreach (var media in episodes.OrderByDescending(x=>x.Number))
                         {
                             media.RelativePath = new[] { alphabeticallyOrderedFiles.Dequeue() };
                         }
