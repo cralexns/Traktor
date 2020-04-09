@@ -236,7 +236,7 @@ namespace Traktor.Core.Services
             {
                 Action = FileResult.FileAction.Delete,
                 Files = media.RelativePath,
-                FolderName = media.GetPhysicalName(),
+                FolderName = StripInvalidCharacters(media.GetPhysicalName()),
                 Status = FileResult.ActionStatus.MediaNotFound
             };
 

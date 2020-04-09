@@ -248,7 +248,7 @@ namespace Traktor.Core
                     }
                     break;
                 case FileService.FileResult.FileAction.Delete:
-                    if (fileResult.Status == FileService.FileResult.ActionStatus.OK)
+                    if (fileResult.Status == FileService.FileResult.ActionStatus.OK || fileResult.Status == FileService.FileResult.ActionStatus.MediaNotFound)
                     {
                         medias.ForEach(x => x.RelativePath = new string[0]);
                         this.Library.Save();
