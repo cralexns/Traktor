@@ -292,6 +292,9 @@ namespace Traktor.Core.Domain
 
         public Episode Clone(int season, int episode)
         {
+            if (this.Season == season && this.Number == episode)
+                throw new InvalidOperationException("Can't clone an Episode with the same season and episode number.");
+
             var cloned = this.MemberwiseClone() as Episode;
             cloned.Number = episode;
             cloned.Season = season;

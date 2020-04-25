@@ -20,16 +20,26 @@ namespace ConsoleApp2
         public static TimeSpan Interval { get; set; }
         public static bool KeepAlive { get; set; }
         public static string ConnectivityScriptPath { get; set; }
-        private static Mutex mutex = null;
+
         static void Main(string[] args)
         {
-            mutex = new Mutex(true, nameof(Traktor), out bool createdNew);
-            if (!createdNew)
+            var appName = nameof(Traktor);
+            using (var mutex = new Mutex(true, appName))
             {
-                Console.WriteLine("Traktor is already running. Exiting..");
-                return;
-            }
+                if (!mutex.WaitOne(TimeSpan.Zero))
+                {
+                    Console.WriteLine("Traktor is already running. Exiting..");
+                    return;
+                }
 
+                RunTraktor(args);
+
+                mutex.ReleaseMutex();
+            }
+        }
+
+        private static void RunTraktor(string[] args)
+        {
             var logLevelSwitch = new Serilog.Core.LoggingLevelSwitch(Serilog.Events.LogEventLevel.Information);
             Log.Logger = new LoggerConfiguration().MinimumLevel.ControlledBy(logLevelSwitch).WriteTo.Console(outputTemplate: "{Message}{NewLine}").WriteTo.File("Logs\\.log", outputTemplate: "{Timestamp:HH:mm:ss} [{Level:u3}] {Message:lj}{NewLine}{Exception}", rollingInterval: RollingInterval.Day).CreateLogger();
 

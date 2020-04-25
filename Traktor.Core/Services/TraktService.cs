@@ -79,6 +79,12 @@ namespace Traktor.Core.Services
             }
         }
 
+        public void ClearAuthentication()
+        {
+            this.AccessToken = null;
+            this.RefreshToken = null;
+        }
+
         public bool IsAuthenticated => !string.IsNullOrEmpty(AccessToken);
 
         public TraktService()
@@ -167,6 +173,10 @@ namespace Traktor.Core.Services
 
                 return response.Data;
             }
+
+            if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+                this.ClearAuthentication();
+
             throw new TraktAPIException(response, $"{response.StatusCode} - {response.StatusDescription} - {response.ErrorMessage}", response.ErrorException);
         }
 
