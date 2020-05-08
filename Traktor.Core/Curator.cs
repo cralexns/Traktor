@@ -657,7 +657,7 @@ namespace Traktor.Core
             foreach (var dli in allDownloads)
             {
                 var relatedMedia = this.Library.GetMediaWithMagnet(dli.MagnetUri);
-                var patience = (relatedMedia.Max(x => x.Release) < DateTime.Now.AddMonths(-6)) ? TimeSpan.FromHours(5) : TimeSpan.FromMinutes(30);
+                var patience = (relatedMedia.Max(x => x.Release) < DateTime.Now.AddMonths(-6) && dli.State == IDownloadInfo.DownloadState.Stalled) ? TimeSpan.FromHours(5) : TimeSpan.FromMinutes(30);
 
                 patience *= Math.Max(1, ((dli.Progress/100) * 10));
 
