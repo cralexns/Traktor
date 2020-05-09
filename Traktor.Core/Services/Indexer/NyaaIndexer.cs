@@ -36,7 +36,7 @@ namespace Traktor.Core.Services.Indexer
             var results = GetResultsForMedia(media).Where(x=> MatchName(x.Name, media.GetCanonicalName()) && (x.Seeds > 0 || x.Peers > 0));
             if (media is Episode episode)
             {
-                return results.Where(x=>x.Season == episode.Season || (!x.Season.HasValue && x.Episode == episode.Number)).ToList();
+                return results.Where(x=>(x.Season == episode.Season && x.Episode == episode.Number) || x.IsFullSeason || (x.Episode == episode.Number && !x.Season.HasValue)).ToList();
             }
 
             return results.ToList();
@@ -71,7 +71,17 @@ namespace Traktor.Core.Services.Indexer
             {
                 if (numbering.Range.HasValue && numbering.Range >= episode.Number)
                 {
-                    idxr.Episode = episode.Number;
+                    if (!idxr.Season.HasValue)
+                        idxr.Season = episode.Season;
+
+                    if (numbering.Episode == 1 && numbering.Range >= episode.TotalEpisodesInSeason)
+                    {
+                        idxr.Episode = null;
+                    }
+                    else
+                    {
+                        idxr.Episode = episode.Number;
+                    }
                 }
                 if (!idxr.Season.HasValue && !idxr.Episode.HasValue && (new Regex(@"(\sCOMPLETE\s)|(?:\[)(Complete)").IsMatch(torrent.name)))
                 {
