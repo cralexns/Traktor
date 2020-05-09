@@ -104,6 +104,9 @@ namespace Traktor.Core.Services.Indexer
         {
             var page = 1;
             var results = Search(search, 100, page);
+
+            if (results == null)
+                yield break;
             
             while (results.torrents.Any())
             {
