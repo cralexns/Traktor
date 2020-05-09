@@ -104,7 +104,7 @@ namespace ConsoleApp2
                         Log.Information($"Running Traktor.Web @ {string.Join(", ", startup.Addresses)}");
                     }
 
-                    ScheduleCuratorUpdates(curator);
+                    ScheduleCuratorUpdates(curator, ts);
                 }
             }
             catch (Exception ex)
@@ -114,15 +114,30 @@ namespace ConsoleApp2
             }
         }
 
-        private static void ScheduleCuratorUpdates(Curator curator)
+        private static void ScheduleCuratorUpdates(Curator curator, TraktService ts)
         {
             Log.Information($"Scheduling update every {Interval} ..");
             // Schedule update.
-            using (var timer = new Timer((t) =>
+            Timer timer = null;
+            using (timer = new Timer((t) =>
             {
+                timer.Change(Timeout.Infinite, Timeout.Infinite);
                 try
                 {
-                    UpdateCurator(curator);
+                    var result = UpdateCurator(curator);
+                    if (result.Is(Curator.CuratorResult.Error, Curator.CuratorResult.NotInitialized, Curator.CuratorResult.Stopped))
+                    {
+                        Environment.Exit(1);
+                    }
+
+                    if (result.Is(Curator.CuratorResult.TraktAuthenticationRequired))
+                    {
+                        
+                        if (!AuthenticateTrakt(ts))
+                        {
+                            Environment.Exit(1);
+                        }
+                    }
                 }
                 catch (Exception ex)
                 {
@@ -141,12 +156,14 @@ namespace ConsoleApp2
 
                     Log.Error($"Caught exception: {ex.Message}");
                 }
-                
+
+                timer.Change((int)Interval.TotalMilliseconds, Timeout.Infinite);
+
                 //if (logLevelSwitch.MinimumLevel == Serilog.Events.LogEventLevel.Debug)
                 //{
                 //    PrintDownloads(curator);
                 //}
-            }, null, TimeSpan.FromSeconds(10), Interval))
+            }, null, 1, Timeout.Infinite))
             {
                 while (HandleInput(curator))
                 {
@@ -160,17 +177,14 @@ namespace ConsoleApp2
             Log.Fatal(ex, $"Unhandled Exception: {ex.Message}");
         }
 
-        private static void UpdateCurator(Curator curator)
+        private static Curator.CuratorResult UpdateCurator(Curator curator)
         {
             var update = curator.Update();
             if (update == Curator.CuratorResult.Updated)
                 Log.Debug($"Curator => {update}");
             else Log.Information($"Curator => {update}");
 
-            if (update.Is(Curator.CuratorResult.Error, Curator.CuratorResult.NotInitialized, Curator.CuratorResult.Stopped, Curator.CuratorResult.TraktAuthenticationRequired))
-            {
-                Environment.Exit(1);
-            }
+            return update;
         }
 
         private static void DisplayBindingIp()

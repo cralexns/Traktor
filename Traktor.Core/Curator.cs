@@ -469,7 +469,7 @@ namespace Traktor.Core
             }
         }
 
-        private void ScoutAndStartDownloads(List<Media> mediaToScout = null, params Uri[] bannedUris)
+        private void ScoutAndStartDownloads(List<Media> mediaToScout = null, bool force = false, params Uri[] bannedUris)
         {
             this.lastScoutDate = DateTime.Now;
 
@@ -480,7 +480,7 @@ namespace Traktor.Core
             {
                 foreach (var episode in season.HasMagnet(false))
                 {
-                    var scoutResult = this.Scouter.Scout(episode);
+                    var scoutResult = this.Scouter.Scout(episode, force);
                     scoutResult.RemoveBannedLinks(bannedUris);
 
                     switch (scoutResult.Status)
@@ -519,7 +519,7 @@ namespace Traktor.Core
 
             foreach (var media in mediaToScout.OfType<Movie>().State(Media.MediaState.Available).HasMagnet(false))
             {
-                var scoutResult = this.Scouter.Scout(media);
+                var scoutResult = this.Scouter.Scout(media, true);
                 scoutResult.RemoveBannedLinks(bannedUris);
 
                 switch (scoutResult.Status)
@@ -707,7 +707,7 @@ namespace Traktor.Core
                         var affectedMedia = this.Library.GetMediaWithMagnet(dli.MagnetUri);
                         if (affectedMedia.Any())
                         {
-                            ScoutAndStartDownloads(affectedMedia, dlhistory.Where(x=>x.Value.Abandoned).Select(x=>x.Key).ToArray());
+                            ScoutAndStartDownloads(affectedMedia, true, dlhistory.Where(x=>x.Value.Abandoned).Select(x=>x.Key).ToArray());
                         }
                     }
                 }
@@ -728,7 +728,7 @@ namespace Traktor.Core
 
         public void ForceScout(Media media)
         {
-            this.ScoutAndStartDownloads(new List<Media>() { media });
+            this.ScoutAndStartDownloads(new List<Media>() { media }, true);
         }
 
         public void TryAnotherMagnet(Media media)
@@ -738,7 +738,7 @@ namespace Traktor.Core
                 this.Downloader.Stop(media.Magnet, true, true);
                 media.SetMagnet(null, true);
 
-                this.ScoutAndStartDownloads(new List<Media> { media }, media.Magnet);
+                this.ScoutAndStartDownloads(new List<Media> { media }, true, media.Magnet);
             }
         }
 

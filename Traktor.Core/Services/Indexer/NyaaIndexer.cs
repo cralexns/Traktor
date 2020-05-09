@@ -11,9 +11,9 @@ namespace Traktor.Core.Services.Indexer
     public class NyaaIndexer : IndexerBase, IIndexer
     {
         public string Name => "Nyaa";
-        public override Regex QualityRegex { get; } = new Regex(@"(?:\.|\s|\[)?(?<quality>[0-9]{3,4}p)(?:\.|\s|\])", RegexOptions.ExplicitCapture);
+        public override Regex QualityRegex { get; } = new Regex(@"(?:\.|\s|\[)?(?<quality>([0-9]{3,4}p)|(x\d{3,4}))(?:\.|\s|\]|$)", RegexOptions.ExplicitCapture);
         public override Regex TraitRegex { get; } = new Regex(@"(?:\.|\s)(?<trait>(BluRay)|(Blu-ray)|(DTS-HD\.MA)|(DTS-HD)|(DTS)|(\[?Dual Audio\]?)|((?:[A-Z]*)5\.1)|(7\.1)|(AAC)|(WEB-DL)|(REPACK)|(PROPER))+", RegexOptions.ExplicitCapture);
-        public override Regex NameRegex { get; } = new Regex(@"(?:^\[[\w-\s]+.\]\s|^)(?<name>(?!\d{2})[A-Za-z0-9\s;,\/\!()'-]+?)\s(?:\d{1,2}-\d{1,2}|-\s\d{1,2}|\[|\d{2}|S\d{1})", RegexOptions.ExplicitCapture);
+        public override Regex NameRegex { get; } = new Regex(@"(?:^\[[\w-\s]+.\]\s|^)(?<name>(?!\d{2})[A-Za-z0-9\s;,\/\!()'-]+?)\s(?:\d{1,2}-\d{1,2}|-\s\d{1,2}|\[|\d{2}|S\d{1}|Complete|ISO|Bluray)", RegexOptions.ExplicitCapture);
         public override Regex NumberingRegex { get; } = new Regex(@"(?:-?\s)(?<episode>0?[1-9]+|\d{2})(?:\s|v2)|(?<range>(\d{2}\s?(-|~)\s?\d{1,2})|(\d{1,2}-\d{1,2}))|(?:S(?<season>\d+))", RegexOptions.ExplicitCapture); //(2 groups: episode and range)
 
         // Complete regex (bool) = (\sCOMPLETE\s)|(?:\[)(Complete)
@@ -39,12 +39,12 @@ namespace Traktor.Core.Services.Indexer
                 return results.Where(x=>x.Season == episode.Season || (!x.Season.HasValue && x.Episode == episode.Number)).ToList();
             }
 
-            return results.Where(x => !x.Season.HasValue && x.Episode.HasValue).ToList();
+            return results.ToList();
         }
 
         public static string TransformForComparison(string text)
         {
-            return Regex.Replace(text, @"[^A-Za-z0-9\s]", "");
+            return Regex.Replace(text, @"[^A-Za-z0-9\s]", " ");
         }
 
         private bool MatchName(string name1, string name2)
@@ -52,7 +52,7 @@ namespace Traktor.Core.Services.Indexer
             var canonName = TransformForComparison(name1).Split(new char[0], StringSplitOptions.RemoveEmptyEntries);
             var resultName = TransformForComparison(name2).Split(new char[0], StringSplitOptions.RemoveEmptyEntries);
 
-            return canonName.Except(resultName).Count() == 0;
+            return canonName.Except(resultName, StringComparer.InvariantCultureIgnoreCase).Count() == 0;
         }
 
         private IndexerResult ParseNyaaTorrent(NyaaTorrentResponse.Torrent torrent, Media media)
@@ -68,10 +68,17 @@ namespace Traktor.Core.Services.Indexer
             idxr.Episode = numbering.Episode;
 
             if (media is Episode episode)
-            if (!idxr.Season.HasValue && !idxr.Episode.HasValue && new Regex(@"(\sCOMPLETE\s)|(?:\[)(Complete)").IsMatch(torrent.name))
             {
-                idxr.Season = episode.Season;
+                if (numbering.Range.HasValue && numbering.Range >= episode.Number)
+                {
+                    idxr.Episode = episode.Number;
+                }
+                if (!idxr.Season.HasValue && !idxr.Episode.HasValue && (new Regex(@"(\sCOMPLETE\s)|(?:\[)(Complete)").IsMatch(torrent.name)))
+                {
+                    idxr.Season = episode.Season;
+                }
             }
+            
 
             return idxr;
         }

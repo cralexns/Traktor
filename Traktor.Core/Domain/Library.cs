@@ -119,7 +119,7 @@ namespace Traktor.Core.Domain
                 {
                     var watchedMedia = GetWatchedMedia(new DateTime(Math.Min(Math.Max(LastActivityUpdate.Ticks, activity.episodes.watched_at.Ticks), Math.Max(LastActivityUpdate.Ticks, activity.movies.watched_at.Ticks)))).ToList();
 
-                    foreach (var showId in watchedMedia.OfType<Episode>().Where(x=>this.OfType<Episode>().Any(y=>y.ShowId.Equals(x.ShowId) && y.Season <= x.Season && y.Number < x.Number && !y.WatchedAt.HasValue)).Select(x=>x.ShowId).Distinct().ToList())
+                    foreach (var showId in watchedMedia.OfType<Episode>().Where(x => this.OfType<Episode>().Any(y => y.ShowId.Equals(x.ShowId) && y.Season <= x.Season && y.Number < x.Number && !y.WatchedAt.HasValue)).Select(x => x.ShowId).Distinct().ToList())
                     {
                         // If we find any media in the library from the same show that is cronologically before the watched media then we need to update watched status for the whole show.
                         watchedMedia.AddRange(GetWatchedEpisodesForShow(showId));
@@ -151,7 +151,7 @@ namespace Traktor.Core.Domain
 
                 var episodes = GetMediaFromCalendar<Episode>(startDate).Where(x=>!this.IgnoreSpecialSeasons || x.Season != 0).ToList();
 
-                var hiddenMediaIds = GetHiddenMediaIds();
+                var hiddenMediaIds = GetHiddenMediaIds().ToList();
                 foreach (var hidden in hiddenMediaIds)
                 {
                     Func<Episode, bool> removeCondition = (x) => x.State != Media.MediaState.Collected && x.ShowId.Equals(hidden.ShowId) && (!hidden.Season.HasValue || x.Season == hidden.Season);

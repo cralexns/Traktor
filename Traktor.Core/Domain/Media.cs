@@ -105,6 +105,16 @@ namespace Traktor.Core.Domain
                     return $"Trakt: {this.Trakt}";
                 return $"Unknown Id";
             }
+
+            public override int GetHashCode()
+            {
+                return this.GetKey().GetHashCode();
+            }
+
+            public override bool Equals(object obj)
+            {
+                return this.Equals(obj as MediaId);
+            }
         }
 
         public MediaId Id { get; set; }
