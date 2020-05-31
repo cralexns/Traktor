@@ -101,7 +101,9 @@ namespace Traktor.Core.Services.Downloader
                 if (this.Torrents.ContainsKey(magnetUri))
                     return;
 
-                torrentManager = new PrioritizedTorrentManager(priority, magnetLink, this.DownloadPath, new TorrentSettings(), Path.Combine(this.CachePath, $"{magnetLink.InfoHash.ToHex()}.torrent"));
+                
+
+                torrentManager = new PrioritizedTorrentManager(priority, magnetLink, Path.Combine(this.DownloadPath, magnetLink.Name), new TorrentSettings(), Path.Combine(this.CachePath, $"{magnetLink.InfoHash.ToHex()}.torrent"));
 
                 this.Torrents.Add(magnetUri, torrentManager);
             }
@@ -201,6 +203,8 @@ namespace Traktor.Core.Services.Downloader
                 var changes = 0;
                 for (var i = 0; i < orderedIncompleteManagers.Count; i++)
                 {
+                    
+
                     var tm = orderedIncompleteManagers[i];
                     if (tm.State == TorrentState.Downloading && tm.StartTime.AddMinutes(10) < DateTime.Now && i < maxActive && tm.Peers.Available == 0 && tm.OpenConnections == 0)
                     {
@@ -332,6 +336,20 @@ namespace Traktor.Core.Services.Downloader
             }
         }
 
+        public void HashCheck(Uri magnetUri)
+        {
+            if (magnetUri == null)
+                return;
+
+            var tm = this.Torrents.GetValueByKey(magnetUri);
+            if (tm != null && tm.HasMetadata)
+            {
+                if (tm.State != TorrentState.Stopped)
+                tm.StopAsync().Wait();
+                tm.HashCheckAsync(true);
+            }
+        }
+
         private static object listLock = new object();
 
         public IDownloadInfo Stop(Uri magnetUri, bool deleteFiles = false, bool remove = false)
@@ -405,7 +423,9 @@ namespace Traktor.Core.Services.Downloader
                 PreferEncryption = true,
                 MaximumDownloadSpeed = this.Settings.MaximumDownloadSpeedKb * 1024,
                 MaximumUploadSpeed = this.Settings.MaximumUploadSpeedKb * 1024,
-                MaximumConnections = this.Settings.MaximumConnections
+                MaximumConnections = this.Settings.MaximumConnections,
+                AllowedEncryption = EncryptionTypes.All
+                
             };
 
             // Create the default settings which a torrent will have.
@@ -413,6 +433,7 @@ namespace Traktor.Core.Services.Downloader
 
             // Create an instance of the engine.
             Engine = new ClientEngine(engineSettings); //new ClientEngine(engineSettings, PeerListenerFactory.CreateTcp(new IPEndPoint(this.Settings.IP, this.Settings.Port)));
+            
 
             byte[] nodes = Array.Empty<byte>();
             try

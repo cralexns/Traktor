@@ -148,13 +148,14 @@ namespace ConsoleApp2
                         process.OutputDataReceived += (object sender, System.Diagnostics.DataReceivedEventArgs e) => Log.Debug($"[ConnectivityScript:Output] {e.Data}");
                         process.ErrorDataReceived += (object sender, System.Diagnostics.DataReceivedEventArgs e) => Log.Debug($"[ConnectivityScript:Error] {e.Data}");
                         process.WaitForExit();
-                        return;
                     }
+                    else
+                    {
+                        Log.Error($"Caught exception: {ex.Message}");
 
-                    if (!KeepAlive)
-                        throw;
-
-                    Log.Error($"Caught exception: {ex.Message}");
+                        if (!KeepAlive)
+                            throw;
+                    }
                 }
 
                 timer.Change((int)Interval.TotalMilliseconds, Timeout.Infinite);

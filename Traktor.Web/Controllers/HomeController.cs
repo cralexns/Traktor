@@ -49,6 +49,7 @@ namespace Traktor.Web.Controllers
         {
             RestartDownload,
             CancelDownload,
+            HashCheck,
             Scout,
             Remove,
             Restart,
@@ -80,6 +81,9 @@ namespace Traktor.Web.Controllers
                         break;
                     case MediaAction.TryAnotherMagnet:
                         Curator.TryAnotherMagnet(mediaItem);
+                        break;
+                    case MediaAction.HashCheck:
+                        Curator.HashCheck(mediaItem);
                         break;
                 }
             }

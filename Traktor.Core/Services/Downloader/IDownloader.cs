@@ -11,6 +11,7 @@ namespace Traktor.Core.Services.Downloader
         IDownloadInfo Stop(Uri magnetUri, bool deleteFiles = false, bool remove = false);
 
         void Restart(Uri magnetUri, bool deleteTorrentFile = false);
+        void HashCheck(Uri magnetUri);
 
         event Action<IDownloadInfo> OnChange;
     }

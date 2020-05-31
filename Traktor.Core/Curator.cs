@@ -719,6 +719,11 @@ namespace Traktor.Core
             this.Downloader.Restart(media.Magnet, deleteTorrent);
         }
 
+        public void HashCheck(Media media)
+        {
+            this.Downloader.HashCheck(media.Magnet);
+        }
+
         public void CancelDownload(Media media)
         {
             var magnet = media.Magnet;
