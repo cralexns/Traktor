@@ -172,7 +172,7 @@ namespace Traktor.Core
             public enum EventType
             {
                 DownloadIntegrity,
-                LibraryCleanup
+                LibraryCleanup,
             }
             public EventType Type { get; set; }
             public string Message { get; set; }
@@ -487,7 +487,8 @@ namespace Traktor.Core
                     {
                         case Scouter.ScoutResult.State.NotFound:
                         case Scouter.ScoutResult.State.Found:
-                            if (scoutResult.Status == Scouter.ScoutResult.State.Found)
+                        case Scouter.ScoutResult.State.BelowReqs when ignoreRequirements.Contains(episode):
+                            if (scoutResult.Status != Scouter.ScoutResult.State.NotFound)
                             {
                                 episode.AddMagnets(scoutResult.Results);
                             }
@@ -525,6 +526,7 @@ namespace Traktor.Core
                 switch (scoutResult.Status)
                 {
                     case Scouter.ScoutResult.State.Found:
+                    case Scouter.ScoutResult.State.BelowReqs when ignoreRequirements.Contains(media):
                         media.AddMagnets(scoutResult.Results);
                         this.Downloader.Download(media.Magnet, media.GetPriority());
                         break;
@@ -583,12 +585,36 @@ namespace Traktor.Core
 
                 this.Library.Save();
 
+                MonitorTorrentEngine();
+
                 return CuratorResult.Updated;
             }
             finally
             {
                 System.Threading.Monitor.Exit(updateLock);
             }
+        }
+
+        private long? totalBytesDownloaded;
+            
+        private void MonitorTorrentEngine()
+        {
+            if (this.Downloader.All().Any(x => x.State == IDownloadInfo.DownloadState.Downloading))
+            {
+                var currentTotalBytesDownloaded = this.Downloader.All().Where(x => x.State == IDownloadInfo.DownloadState.Downloading).Sum(x => x.DownloadedBytes);
+                if (currentTotalBytesDownloaded != totalBytesDownloaded)
+                    totalBytesDownloaded = currentTotalBytesDownloaded;
+                else
+                {
+                    TriggerCuratorEvent(CuratorEvent.EventType.DownloadIntegrity, "TorrentEngine went a full update cycle with active downloads without receiving any data, restarting engine..");
+                    RestartMonoTorrent();
+                }
+            }
+            else
+            {
+                totalBytesDownloaded = null;
+            }
+            
         }
 
         private void HandleLibraryCleanup()
@@ -719,9 +745,24 @@ namespace Traktor.Core
             this.Downloader.Restart(media.Magnet, deleteTorrent);
         }
 
+        public void RestartMonoTorrent()
+        {
+            
+            (this.Downloader as MediaDownloader).Restart();
+        }
+
         public void HashCheck(Media media)
         {
             this.Downloader.HashCheck(media.Magnet);
+        }
+
+        private List<Media> ignoreRequirements = new List<Media>();
+        public void IgnoreRequirement(Media media)
+        {
+            if (!ignoreRequirements.Contains(media))
+                ignoreRequirements.Add(media);
+
+            ForceScout(media);
         }
 
         public void CancelDownload(Media media)

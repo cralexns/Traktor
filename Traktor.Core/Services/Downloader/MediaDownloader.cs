@@ -76,16 +76,7 @@ namespace Traktor.Core.Services.Downloader
             AppDomain.CurrentDomain.UnhandledException += delegate (object sender, UnhandledExceptionEventArgs e) { Shutdown().Wait(); };
             Thread.GetDomain().UnhandledException += delegate (object sender, UnhandledExceptionEventArgs e) { Shutdown().Wait(); };
 
-            try
-            {
-                var fastResumePath = Path.Combine(this.CachePath, "fastresume.data");
-                FastResume = BEncodedValue.Decode<BEncodedDictionary>(File.ReadAllBytes(fastResumePath));
-                File.Delete(fastResumePath);
-            }
-            catch
-            {
-                FastResume = new BEncodedDictionary();
-            }
+            
 
             InitializeClientEngine().Wait();
         }
@@ -101,22 +92,28 @@ namespace Traktor.Core.Services.Downloader
                 if (this.Torrents.ContainsKey(magnetUri))
                     return;
 
-                
+
 
                 torrentManager = new PrioritizedTorrentManager(priority, magnetLink, Path.Combine(this.DownloadPath, magnetLink.Name), new TorrentSettings(), Path.Combine(this.CachePath, $"{magnetLink.InfoHash.ToHex()}.torrent"));
 
                 this.Torrents.Add(magnetUri, torrentManager);
             }
 
+            StartTorrentManager(torrentManager);
+        }
+
+        private void StartTorrentManager(PrioritizedTorrentManager torrentManager)
+        {
+            var frKey = torrentManager.Torrent?.InfoHash.ToHex();
             try
             {
-                if (FastResume.ContainsKey(magnetLink.InfoHash.ToHex()))
-                    torrentManager.LoadFastResume(new FastResume((BEncodedDictionary)FastResume[magnetLink.InfoHash.ToHex()]));
+                if (!string.IsNullOrEmpty(frKey) && FastResume.ContainsKey(frKey))
+                    torrentManager.LoadFastResume(new FastResume((BEncodedDictionary)FastResume[frKey]));
             }
             catch (InvalidOperationException ex)
             {
-                FastResume.Remove(magnetLink.InfoHash.ToHex());
-            }  
+                FastResume.Remove(frKey);
+            }
 
             Engine.Register(torrentManager).Wait();
 
@@ -192,6 +189,9 @@ namespace Traktor.Core.Services.Downloader
         private static object manageLock = new object();
         private int ManageActiveDownloads()
         {
+            if (!Engine?.IsRunning ?? true)
+                return -1;
+
             lock (manageLock)
             {
                 var orderedIncompleteManagers = this.Torrents.Values.Where(x=>!x.Complete).OrderByDescending(x => x.Priority).ThenByDescending(x => x.PartialProgress).ToList(); //  && !x.State.Is(TorrentState.Stopping, TorrentState.Metadata, TorrentState.Hashing, TorrentState.Stopped)
@@ -417,6 +417,17 @@ namespace Traktor.Core.Services.Downloader
 
         private async Task InitializeClientEngine()
         {
+            try
+            {
+                var fastResumePath = Path.Combine(this.CachePath, "fastresume.data");
+                FastResume = BEncodedValue.Decode<BEncodedDictionary>(File.ReadAllBytes(fastResumePath));
+                File.Delete(fastResumePath);
+            }
+            catch
+            {
+                FastResume = new BEncodedDictionary();
+            }
+
             EngineSettings engineSettings = new EngineSettings
             {
                 ListenPort = this.Settings.Port,
@@ -425,7 +436,6 @@ namespace Traktor.Core.Services.Downloader
                 MaximumUploadSpeed = this.Settings.MaximumUploadSpeedKb * 1024,
                 MaximumConnections = this.Settings.MaximumConnections,
                 AllowedEncryption = EncryptionTypes.All
-                
             };
 
             // Create the default settings which a torrent will have.
@@ -433,7 +443,7 @@ namespace Traktor.Core.Services.Downloader
 
             // Create an instance of the engine.
             Engine = new ClientEngine(engineSettings); //new ClientEngine(engineSettings, PeerListenerFactory.CreateTcp(new IPEndPoint(this.Settings.IP, this.Settings.Port)));
-            
+            //Engine.StatsUpdate += Engine_StatsUpdate;
 
             byte[] nodes = Array.Empty<byte>();
             try
@@ -464,6 +474,24 @@ namespace Traktor.Core.Services.Downloader
             }
         }
 
+        //private DateTime lastDownloadActivity = DateTime.Now;
+        //private long totalBytesDownloaded;
+        //private void Engine_StatsUpdate(object sender, StatsUpdateEventArgs e)
+        //{
+        //    var totalDownloaded = Engine.Torrents.Sum(x => x.Monitor.DataBytesDownloaded);
+        //    if (totalBytesDownloaded != totalDownloaded || !Engine.Torrents.Any(x => x.State == TorrentState.Downloading))
+        //    {
+        //        lastDownloadActivity = DateTime.Now;
+        //        totalBytesDownloaded = totalDownloaded;
+        //    }
+        //    else if ((DateTime.Now - lastDownloadActivity).TotalMinutes > 10)
+        //    {
+        //        totalBytesDownloaded = 0;
+        //        lastDownloadActivity = DateTime.Now;
+        //        Restart();
+        //    }
+        //}
+
         private async Task Shutdown()
         {
             var tmArray = this.Torrents.Values.ToArray();
@@ -491,8 +519,23 @@ namespace Traktor.Core.Services.Downloader
             Engine.Dispose();
         }
 
+        public void Restart()
+        {
+            Console.WriteLine("Restart MonoTorrent...");
+            Shutdown().Wait();
+            InitializeClientEngine().Wait();
+
+            Console.WriteLine("Restarted MonoTorrent, re-registering torrents.");
+
+            foreach (var ptm in this.Torrents)
+                StartTorrentManager(ptm.Value);
+        }
+
         public void Dispose()
         {
+            if (manageDownloadsTimer != null)
+                manageDownloadsTimer.Dispose();
+
             Shutdown().Wait();
         }
     }

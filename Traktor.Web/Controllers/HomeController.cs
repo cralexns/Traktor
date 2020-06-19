@@ -53,7 +53,8 @@ namespace Traktor.Web.Controllers
             Scout,
             Remove,
             Restart,
-            TryAnotherMagnet
+            TryAnotherMagnet,
+            IgnoreRequirements
         }
 
         [Route("{dbId}/{actionType}")]
@@ -85,8 +86,18 @@ namespace Traktor.Web.Controllers
                     case MediaAction.HashCheck:
                         Curator.HashCheck(mediaItem);
                         break;
+                    case MediaAction.IgnoreRequirements:
+                        Curator.IgnoreRequirement(mediaItem);
+                        break;
                 }
             }
+
+            return RedirectToAction("Index");
+        }
+
+        public IActionResult DownloaderRestart()
+        {
+            Curator.RestartMonoTorrent();
 
             return RedirectToAction("Index");
         }

@@ -179,6 +179,7 @@
                                             <span class="flex-grow-1"><i class="fas fa-search"></i>&nbsp;Last scouted <span data-livestamp="@(item.LastScoutedAt.ToUnixTimeSeconds())" title="@item.LastScoutedAt"></span></span>
                                             <span class="actions" style="display:none;">
                                                 <a href="@Url.Action("Action", "Home", new { dbId = item.DbId, actionType = HomeController.MediaAction.Scout })" class="btn btn-info btn-sm" title="Scout now"><i class="fas fa-search-plus"></i></a>
+                                                <a href="@Url.Action("Action", "Home", new { dbId = item.DbId, actionType = HomeController.MediaAction.IgnoreRequirements })" class="btn btn-warning btn-sm" title="Ignore Requirement"><i class="fas fa-bolt"></i></a>
                                                 <a href="@Url.Action("Action", "Home", new { dbId = item.DbId, actionType = HomeController.MediaAction.Remove })" class="btn btn-danger btn-sm" title="Remove"><i class="fas fa-minus-circle"></i></a>
                                             </span>
                                         </small>
