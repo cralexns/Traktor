@@ -76,7 +76,16 @@ namespace Traktor.Core.Services.Downloader
             AppDomain.CurrentDomain.UnhandledException += delegate (object sender, UnhandledExceptionEventArgs e) { Shutdown().Wait(); };
             Thread.GetDomain().UnhandledException += delegate (object sender, UnhandledExceptionEventArgs e) { Shutdown().Wait(); };
 
-            
+            try
+            {
+                var fastResumePath = Path.Combine(this.CachePath, "fastresume.data");
+                FastResume = BEncodedValue.Decode<BEncodedDictionary>(File.ReadAllBytes(fastResumePath));
+                File.Delete(fastResumePath);
+            }
+            catch
+            {
+                FastResume = new BEncodedDictionary();
+            }
 
             InitializeClientEngine().Wait();
         }
@@ -189,8 +198,8 @@ namespace Traktor.Core.Services.Downloader
         private static object manageLock = new object();
         private int ManageActiveDownloads()
         {
-            if (!Engine?.IsRunning ?? true)
-                return -1;
+            //if (!Engine?.IsRunning ?? true)
+            //    return -1;
 
             lock (manageLock)
             {
@@ -203,8 +212,6 @@ namespace Traktor.Core.Services.Downloader
                 var changes = 0;
                 for (var i = 0; i < orderedIncompleteManagers.Count; i++)
                 {
-                    
-
                     var tm = orderedIncompleteManagers[i];
                     if (tm.State == TorrentState.Downloading && tm.StartTime.AddMinutes(10) < DateTime.Now && i < maxActive && tm.Peers.Available == 0 && tm.OpenConnections == 0)
                     {
@@ -417,17 +424,6 @@ namespace Traktor.Core.Services.Downloader
 
         private async Task InitializeClientEngine()
         {
-            try
-            {
-                var fastResumePath = Path.Combine(this.CachePath, "fastresume.data");
-                FastResume = BEncodedValue.Decode<BEncodedDictionary>(File.ReadAllBytes(fastResumePath));
-                File.Delete(fastResumePath);
-            }
-            catch
-            {
-                FastResume = new BEncodedDictionary();
-            }
-
             EngineSettings engineSettings = new EngineSettings
             {
                 ListenPort = this.Settings.Port,
@@ -519,22 +515,22 @@ namespace Traktor.Core.Services.Downloader
             Engine.Dispose();
         }
 
-        public void Restart()
-        {
-            Console.WriteLine("Restart MonoTorrent...");
-            Shutdown().Wait();
-            InitializeClientEngine().Wait();
+        //public void Restart()
+        //{
+        //    Console.WriteLine("Restart MonoTorrent...");
+        //    Shutdown().Wait();
+        //    InitializeClientEngine().Wait();
 
-            Console.WriteLine("Restarted MonoTorrent, re-registering torrents.");
+        //    Console.WriteLine("Restarted MonoTorrent, re-registering torrents.");
 
-            foreach (var ptm in this.Torrents)
-                StartTorrentManager(ptm.Value);
-        }
+        //    foreach (var ptm in this.Torrents)
+        //        StartTorrentManager(ptm.Value);
+        //}
 
         public void Dispose()
         {
-            if (manageDownloadsTimer != null)
-                manageDownloadsTimer.Dispose();
+            //if (manageDownloadsTimer != null)
+            //    manageDownloadsTimer.Dispose();
 
             Shutdown().Wait();
         }

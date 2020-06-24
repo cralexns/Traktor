@@ -745,11 +745,11 @@ namespace Traktor.Core
             this.Downloader.Restart(media.Magnet, deleteTorrent);
         }
 
-        public void RestartMonoTorrent()
-        {
+        //public void RestartMonoTorrent()
+        //{
             
-            (this.Downloader as MediaDownloader).Restart();
-        }
+        //    (this.Downloader as MediaDownloader).Restart();
+        //}
 
         public void HashCheck(Media media)
         {

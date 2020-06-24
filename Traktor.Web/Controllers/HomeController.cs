@@ -95,12 +95,12 @@ namespace Traktor.Web.Controllers
             return RedirectToAction("Index");
         }
 
-        public IActionResult DownloaderRestart()
-        {
-            Curator.RestartMonoTorrent();
+        //public IActionResult DownloaderRestart()
+        //{
+        //    Curator.RestartMonoTorrent();
 
-            return RedirectToAction("Index");
-        }
+        //    return RedirectToAction("Index");
+        //}
 
         public IActionResult Downloader()
         {

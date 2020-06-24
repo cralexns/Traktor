@@ -212,9 +212,9 @@ namespace ConsoleApp2
                 case "update":
                     UpdateCurator(curator);
                     return true;
-                case "restartmt":
-                    (curator.Downloader as Traktor.Core.Services.Downloader.MediaDownloader).Restart();
-                    return true;
+                //case "restartmt":
+                //    (curator.Downloader as Traktor.Core.Services.Downloader.MediaDownloader).Restart();
+                //    return true;
                 case "terminate":
                 case "quit":
                 case "exit":
