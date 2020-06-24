@@ -585,7 +585,7 @@ namespace Traktor.Core
 
                 this.Library.Save();
 
-                MonitorTorrentEngine();
+                //MonitorTorrentEngine();
 
                 return CuratorResult.Updated;
             }
@@ -597,25 +597,25 @@ namespace Traktor.Core
 
         private long? totalBytesDownloaded;
             
-        private void MonitorTorrentEngine()
-        {
-            if (this.Downloader.All().Any(x => x.State == IDownloadInfo.DownloadState.Downloading))
-            {
-                var currentTotalBytesDownloaded = this.Downloader.All().Where(x => x.State == IDownloadInfo.DownloadState.Downloading).Sum(x => x.DownloadedBytes);
-                if (currentTotalBytesDownloaded != totalBytesDownloaded)
-                    totalBytesDownloaded = currentTotalBytesDownloaded;
-                else
-                {
-                    TriggerCuratorEvent(CuratorEvent.EventType.DownloadIntegrity, "TorrentEngine went a full update cycle with active downloads without receiving any data, restarting engine..");
-                    RestartMonoTorrent();
-                }
-            }
-            else
-            {
-                totalBytesDownloaded = null;
-            }
+        //private void MonitorTorrentEngine()
+        //{
+        //    if (this.Downloader.All().Any(x => x.State == IDownloadInfo.DownloadState.Downloading))
+        //    {
+        //        var currentTotalBytesDownloaded = this.Downloader.All().Where(x => x.State == IDownloadInfo.DownloadState.Downloading).Sum(x => x.DownloadedBytes);
+        //        if (currentTotalBytesDownloaded != totalBytesDownloaded)
+        //            totalBytesDownloaded = currentTotalBytesDownloaded;
+        //        else
+        //        {
+        //            TriggerCuratorEvent(CuratorEvent.EventType.DownloadIntegrity, "TorrentEngine went a full update cycle with active downloads without receiving any data, restarting engine..");
+        //            RestartMonoTorrent();
+        //        }
+        //    }
+        //    else
+        //    {
+        //        totalBytesDownloaded = null;
+        //    }
             
-        }
+        //}
 
         private void HandleLibraryCleanup()
         {
