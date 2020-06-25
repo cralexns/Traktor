@@ -21,6 +21,8 @@ namespace Traktor.Core.Services.Downloader
         long DownloadedBytes { get; set; }
         long UploadedBytes { get; set; }
 
+        int MaxConnections { get; set; }
+
         public enum DownloadState
         {
             Initializing,

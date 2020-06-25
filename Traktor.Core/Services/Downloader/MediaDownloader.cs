@@ -27,6 +27,11 @@ namespace Traktor.Core.Services.Downloader
             {
                 this.Priority = priority;
             }
+
+            public PrioritizedTorrentManager(int priority, Torrent torrent, string savePath, TorrentSettings settings) : base(torrent, savePath, settings)
+            {
+                this.Priority = priority;
+            }
             public int Priority { get; set; }
         }
 
@@ -101,14 +106,41 @@ namespace Traktor.Core.Services.Downloader
                 if (this.Torrents.ContainsKey(magnetUri))
                     return;
 
+                var torrent = GetTorrentFile(magnetLink);
+                if (torrent != null)
+                {
+                    torrentManager = new PrioritizedTorrentManager(priority, torrent, Path.Combine(this.DownloadPath, magnetLink.Name), new TorrentSettings());
+                }
+                else throw new Exception("Failed to retrieve torrent from magnet link..");
 
-
-                torrentManager = new PrioritizedTorrentManager(priority, magnetLink, Path.Combine(this.DownloadPath, magnetLink.Name), new TorrentSettings(), Path.Combine(this.CachePath, $"{magnetLink.InfoHash.ToHex()}.torrent"));
+                //torrentManager = new PrioritizedTorrentManager(priority, magnetLink, Path.Combine(this.DownloadPath, magnetLink.Name), new TorrentSettings(), Path.Combine(this.CachePath, $"{magnetLink.InfoHash.ToHex()}.torrent"));
 
                 this.Torrents.Add(magnetUri, torrentManager);
             }
 
             StartTorrentManager(torrentManager);
+        }
+
+        private string GetTorrentPath(InfoHash hash) => Path.Combine(this.CachePath, $"{hash.ToHex()}.torrent");
+
+        private Torrent GetTorrentFile(MagnetLink magnetLink)
+        {
+            string torrentPath = GetTorrentPath(magnetLink.InfoHash);
+            if (Torrent.TryLoad(torrentPath, out var torrent))
+            {
+                return torrent;
+            }
+
+            return Engine.DownloadMetadataAsync(magnetLink, new CancellationTokenSource().Token).ContinueWith(x =>
+            {
+                var torrentData = x.Result;
+                if (Torrent.TryLoad(torrentData, out var torrent))
+                {
+                    File.WriteAllBytes(torrentPath, torrentData);
+                    return torrent;
+                }
+                return null;
+            }).Result;
         }
 
         private void StartTorrentManager(PrioritizedTorrentManager torrentManager)
@@ -129,7 +161,7 @@ namespace Traktor.Core.Services.Downloader
             torrentManager.TorrentStateChanged += TorrentManager_TorrentStateChanged;
             //torrentManager.PeersFound += TorrentManager_PeersFound;
 
-            if (torrentManager.Complete)
+            if (torrentManager.Complete || Settings.MaxConcurrent == 0)
                 torrentManager.StartAsync().Wait();
             else if (manageDownloadsTimer == null)
                 manageDownloadsTimer = new Timer((x) => { ManageActiveDownloads(); }, null, TimeSpan.FromSeconds(1), TimeSpan.FromMilliseconds(-1));
@@ -223,7 +255,7 @@ namespace Traktor.Core.Services.Downloader
                     {
                         if (tm.State == TorrentState.Stopped && !tm.Complete)
                         {
-                            tm.Settings.MaximumConnections = this.Settings.MaximumConnections / Math.Min(orderedIncompleteManagers.Count, maxActive);
+                            tm.Settings.MaximumConnections = Math.Max(1, this.Settings.MaximumConnections / Math.Min(orderedIncompleteManagers.Count, maxActive));
                             tm.StartAsync().Wait();
                             changes++;
                         }
@@ -257,6 +289,8 @@ namespace Traktor.Core.Services.Downloader
             public long DownloadSpeed { get; set; }
             public long UploadSpeed { get; set; }
 
+            public int MaxConnections { get; set; }
+
             public IDownloadInfo.DownloadState State { get; set; }
 
             public DateTime? Completed { get; set; }
@@ -283,6 +317,8 @@ namespace Traktor.Core.Services.Downloader
 
                 DownloadSpeed = torrentManager.Monitor.DownloadSpeed;
                 UploadSpeed = torrentManager.Monitor.UploadSpeed;
+
+                MaxConnections = torrentManager.Settings.MaximumConnections;
             }
 
             private IDownloadInfo.DownloadState GetState(TorrentManager manager, TorrentState? state = null)
@@ -336,7 +372,10 @@ namespace Traktor.Core.Services.Downloader
                 tm.StopAsync().Wait();
 
                 if (deleteTorrentFile && tm.Torrent != null)
-                    File.Delete(tm.Torrent?.TorrentPath);
+                {
+                    var torrentPath = (!string.IsNullOrEmpty(tm.Torrent.TorrentPath)) ? tm.Torrent.TorrentPath : GetTorrentPath(tm.Torrent.InfoHash);
+                    File.Delete(torrentPath);
+                }
 
                 tm.TorrentStateChanged += TorrentManager_TorrentStateChanged;
                 tm.StartAsync().Wait();
@@ -375,9 +414,11 @@ namespace Traktor.Core.Services.Downloader
                 {
                     torrentManager.TorrentStateChanged -= TorrentManager_TorrentStateChanged;
                     this.Torrents.Remove(magnetUri);
+
                     try
                     {
-                        File.Delete(torrentManager.Torrent.TorrentPath);
+                        var torrentPath = (!string.IsNullOrEmpty(torrentManager.Torrent.TorrentPath)) ? torrentManager.Torrent.TorrentPath : GetTorrentPath(torrentManager.Torrent.InfoHash);
+                        File.Delete(torrentPath);
                     }
                     catch
                     {

@@ -45,7 +45,7 @@ var percentage = Math.Round(downloadInfo.Progress, 2);
             <td>@(Utility.SizeSuffix(download.UploadSpeed))/s</td>
             <td>@download.Leechs</td>
             <td>@download.Seeds</td>
-            <td>@download.Peers</td>
+            <td>@download.Peers <small>/@download.MaxConnections</small></td>
         </tr>
         }
     </tbody>
