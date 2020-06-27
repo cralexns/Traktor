@@ -34,7 +34,8 @@ namespace Traktor.Core
                     Tag,
                     Group,
                     SizeMb,
-                    FreeText
+                    FreeText,
+                    Peers
                 }
 
                 public enum ParameterComparison
@@ -107,6 +108,12 @@ namespace Traktor.Core
                             return Compare(result.SizeBytes, ((def.ToLong() ?? 0) * 1024 * 1024));
                         case ParameterCategory.FreeText:
                             return result.Title.Contains(def as string);
+                        case ParameterCategory.Peers:
+                            if (def.EndsWith("S"))
+                                return Compare(result.Seeds, def.Substring(0, def.Length - 1).ToInt() ?? 0);
+                            if (def.EndsWith("L"))
+                                return Compare(result.Peers, def.Substring(0, def.Length - 1).ToInt() ?? 0);
+                            return Compare(result.Seeds + result.Peers, def.ToInt() ?? 0);
                     }
                     return false;
                 }
@@ -298,23 +305,8 @@ namespace Traktor.Core
             if (!force && requirements.NoResultThrottle.HasValue && media.LastScoutedAt.HasValue && !media.FirstSpottedAt.HasValue && media.LastScoutedAt.Value.Add(requirements.NoResultThrottle.Value) > DateTime.Now)
                 return new ScoutResult { Status = ScoutResult.State.Throttle };
 
-            var indexers = GetIndexersForMedia(media);
-            //var minScore = GetRequiredScore(media, requirements);
-            //var maximumScore = GetRequiredScore(media, requirements, true);
-
-            var results = new List<(IndexerResult Result, (bool Passed, int Score, int MaximumScore) Evaluation)>();
-            for (var i = 0; i < indexers.Count; i++)
-            {
-                //results = results.Concat(indexers[i].FindResultsFor(media).Select((x) => (Result: x, Score: MediaRequirementScore(media, x, requirements))))
-                //    .OrderByDescending(x => x.Score).ThenByDescending(x => indexers[i].Priority).ThenByDescending(x => x.Result.Seeds + x.Result.Peers).ToList();
-
-                var mediaToScout = GetRedirectedMedia(media) ?? media;
-
-                var resultsFromIndexer = (indexers[i].FindResultsFor(mediaToScout) ?? new List<IndexerResult>()).Select((x) => (Result: x, Evaluation: EvaluateResult(x, media, requirements)))
-                    .OrderByDescending(x => x.Evaluation.Score).ThenByDescending(x => indexers[i].Priority).ThenByDescending(x => (x.Result.Seeds * 10) + x.Result.Peers).ToList();
-
-                results = results.Concat(resultsFromIndexer).ToList();  
-            }
+            var results = GetIndexersForMedia(media).SelectMany(i=> (i.FindResultsFor(GetRedirectedMedia(media) ?? media) ?? new List<IndexerResult>()).Select((r) => (Result: r, Evaluation: EvaluateResult(r, media, requirements), Indexer: i)))
+                .OrderByDescending(x => x.Evaluation.Score).ThenByDescending(x => x.Indexer.Priority).ThenByDescending(x => (x.Result.Seeds * 10) + x.Result.Peers).ToList();
 
             if (results.Any() && results.Any(x => x.Evaluation.Passed && x.Evaluation.Score == x.Evaluation.MaximumScore))
             {

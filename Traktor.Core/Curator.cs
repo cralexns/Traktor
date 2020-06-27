@@ -62,7 +62,8 @@ namespace Traktor.Core
                             {
                                 new Scouter.RequirementConfig.Parameter { Category = Scouter.RequirementConfig.Parameter.ParameterCategory.Resolution, Definition = new [] { nameof(IndexerResult.VideoQualityLevel.HD_720p) }, Comparison = Scouter.RequirementConfig.Parameter.ParameterComparison.Minimum },
                                 new Scouter.RequirementConfig.Parameter { Category = Scouter.RequirementConfig.Parameter.ParameterCategory.Resolution, Definition = new[] { nameof(IndexerResult.VideoQualityLevel.FHD_1080p) }, Patience = TimeSpan.FromHours(7) },
-                                new Scouter.RequirementConfig.Parameter { Category = Scouter.RequirementConfig.Parameter.ParameterCategory.Tag, Definition = new[] { nameof(IndexerResult.QualityTrait.PROPER), nameof(IndexerResult.QualityTrait.REPACK) }, Patience = TimeSpan.FromHours(3)}
+                                new Scouter.RequirementConfig.Parameter { Category = Scouter.RequirementConfig.Parameter.ParameterCategory.Tag, Definition = new[] { nameof(IndexerResult.QualityTrait.PROPER), nameof(IndexerResult.QualityTrait.REPACK) }, Patience = TimeSpan.FromHours(3)},
+                                new Scouter.RequirementConfig.Parameter { Category = Scouter.RequirementConfig.Parameter.ParameterCategory.Peers, Definition = new[] { "1S" }, Comparison = Scouter.RequirementConfig.Parameter.ParameterComparison.Minimum }
                             }
                         },
                         new Scouter.RequirementConfig
@@ -79,7 +80,8 @@ namespace Traktor.Core
                                 new Scouter.RequirementConfig.Parameter { Category = Scouter.RequirementConfig.Parameter.ParameterCategory.Source, Definition = new [] { nameof(IndexerResult.QualityTrait.BluRay) }, Patience = TimeSpan.Zero },
                                 new Scouter.RequirementConfig.Parameter { Category = Scouter.RequirementConfig.Parameter.ParameterCategory.Audio, Definition = new [] { nameof(IndexerResult.QualityTrait.AAC)}, Comparison = Scouter.RequirementConfig.Parameter.ParameterComparison.NotEqual },
                                 new Scouter.RequirementConfig.Parameter { Category = Scouter.RequirementConfig.Parameter.ParameterCategory.Group, Definition = new [] { "SPARKS" }, Patience = TimeSpan.Zero },
-                                new Scouter.RequirementConfig.Parameter { Category = Scouter.RequirementConfig.Parameter.ParameterCategory.SizeMb, Definition = new [] { "10000" }, Comparison = Scouter.RequirementConfig.Parameter.ParameterComparison.Minimum }
+                                new Scouter.RequirementConfig.Parameter { Category = Scouter.RequirementConfig.Parameter.ParameterCategory.SizeMb, Definition = new [] { "10000" }, Comparison = Scouter.RequirementConfig.Parameter.ParameterComparison.Minimum },
+                                new Scouter.RequirementConfig.Parameter { Category = Scouter.RequirementConfig.Parameter.ParameterCategory.Peers, Definition = new[] { "1S" }, Comparison = Scouter.RequirementConfig.Parameter.ParameterComparison.Minimum }
                             }
                         }
                     },
@@ -482,7 +484,6 @@ namespace Traktor.Core
                 {
                     var scoutResult = this.Scouter.Scout(episode, force);
                     scoutResult.RemoveBannedLinks(bannedUris);
-
                     switch (scoutResult.Status)
                     {
                         case Scouter.ScoutResult.State.NotFound:
