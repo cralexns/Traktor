@@ -9,8 +9,6 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Traktor.Console", "Traktor.
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Traktor.Web", "Traktor.Web\Traktor.Web.csproj", "{A9753361-ADC4-4EF3-A1BE-184DB42A72DA}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MonoTorrent", "..\..\..\Projects\monotorrent\src\MonoTorrent\MonoTorrent.csproj", "{941FC721-773E-47FF-AAE1-F899A91F50D4}"
-EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -29,10 +27,6 @@ Global
 		{A9753361-ADC4-4EF3-A1BE-184DB42A72DA}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{A9753361-ADC4-4EF3-A1BE-184DB42A72DA}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{A9753361-ADC4-4EF3-A1BE-184DB42A72DA}.Release|Any CPU.Build.0 = Release|Any CPU
-		{941FC721-773E-47FF-AAE1-F899A91F50D4}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{941FC721-773E-47FF-AAE1-F899A91F50D4}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{941FC721-773E-47FF-AAE1-F899A91F50D4}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{941FC721-773E-47FF-AAE1-F899A91F50D4}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

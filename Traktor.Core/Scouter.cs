@@ -310,13 +310,15 @@ namespace Traktor.Core
 
                 var mediaToScout = GetRedirectedMedia(media) ?? media;
 
-                results = results.Concat((indexers[i].FindResultsFor(mediaToScout) ?? new List<IndexerResult>()).Select((x) => (Result: x, Evaluation: EvaluateResult(x, media, requirements))))
-                    .OrderByDescending(x => x.Evaluation.Score).ThenByDescending(x => indexers[i].Priority).ThenByDescending(x => x.Result.Seeds + x.Result.Peers).ToList();
+                var resultsFromIndexer = (indexers[i].FindResultsFor(mediaToScout) ?? new List<IndexerResult>()).Select((x) => (Result: x, Evaluation: EvaluateResult(x, media, requirements)))
+                    .OrderByDescending(x => x.Evaluation.Score).ThenByDescending(x => indexers[i].Priority).ThenByDescending(x => (x.Result.Seeds * 10) + x.Result.Peers).ToList();
 
-                if (results.Any() && results.Any(x=>x.Evaluation.Passed && x.Evaluation.Score == x.Evaluation.MaximumScore))
-                {
-                    return new ScoutResult(results.Select(x => (x.Result, x.Evaluation.Score))) { Status = ScoutResult.State.Found };
-                }
+                results = results.Concat(resultsFromIndexer).ToList();  
+            }
+
+            if (results.Any() && results.Any(x => x.Evaluation.Passed && x.Evaluation.Score == x.Evaluation.MaximumScore))
+            {
+                return new ScoutResult(results.Select(x => (x.Result, x.Evaluation.Score))) { Status = ScoutResult.State.Found };
             }
 
             if (results.Any())
