@@ -213,6 +213,7 @@ Sync local library with Trakt.tv
                     <li>Group</li>
                     <li>SizeMb</li>
                     <li>FreeText</li>
+                  <li>Peers</li>
                 </ul>
             </td>
         </tr>
@@ -256,6 +257,7 @@ Sync local library with Trakt.tv
                 </ul>
                 <p>If Category is <b>Group/FreeText</b> then name of a release group or whatever you want to be in the name of the torrent.</p>
                 <p>If Category is <b>SizeMb</b> then a size in megabytes.</p>
+              <p>If Category is <b>Peers</b> then specify a number of peers, Seeders/Leechers can be targeted specifically by appending S or L to the number.</p>
             </td>
         </tr>
         <tr>
