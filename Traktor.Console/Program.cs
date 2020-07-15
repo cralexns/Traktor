@@ -21,6 +21,7 @@ namespace ConsoleApp2
         public static bool KeepAlive { get; set; }
         public static string ConnectivityScriptPath { get; set; }
 
+        private static bool isBusy = false;
         static void Main(string[] args)
         {
             var appName = nameof(Traktor);
@@ -33,6 +34,11 @@ namespace ConsoleApp2
                 }
 
                 RunTraktor(args);
+
+                while (isBusy)
+                {
+                    Thread.Sleep(100);
+                }
 
                 mutex.ReleaseMutex();
             }
@@ -117,6 +123,7 @@ namespace ConsoleApp2
         private static void ScheduleCuratorUpdates(Curator curator, TraktService ts)
         {
             Log.Information($"Scheduling update every {Interval} ..");
+            
             // Schedule update.
             Timer timer = null;
             using (timer = new Timer((t) =>
@@ -124,6 +131,8 @@ namespace ConsoleApp2
                 timer.Change(Timeout.Infinite, Timeout.Infinite);
                 try
                 {
+                    isBusy = true;
+
                     var result = UpdateCurator(curator);
                     if (result.Is(Curator.CuratorResult.Error, Curator.CuratorResult.NotInitialized, Curator.CuratorResult.Stopped))
                     {
@@ -132,7 +141,7 @@ namespace ConsoleApp2
 
                     if (result.Is(Curator.CuratorResult.TraktAuthenticationRequired))
                     {
-                        
+
                         if (!AuthenticateTrakt(ts))
                         {
                             Environment.Exit(1);
@@ -156,6 +165,10 @@ namespace ConsoleApp2
                         if (!KeepAlive)
                             throw;
                     }
+                }
+                finally
+                {
+                    isBusy = false;
                 }
 
                 timer.Change((int)Interval.TotalMilliseconds, Timeout.Infinite);

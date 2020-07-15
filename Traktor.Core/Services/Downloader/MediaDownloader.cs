@@ -111,7 +111,10 @@ namespace Traktor.Core.Services.Downloader
                 {
                     torrentManager = new PrioritizedTorrentManager(priority, torrent, Path.Combine(this.DownloadPath, magnetLink.Name), new TorrentSettings());
                 }
-                else throw new Exception("Failed to retrieve torrent from magnet link..");
+                else
+                {
+                    torrentManager = new PrioritizedTorrentManager(priority, magnetLink, Path.Combine(this.DownloadPath, magnetLink.Name), new TorrentSettings(), Path.Combine(this.CachePath, $"{magnetLink.InfoHash.ToHex()}.torrent"));
+                }
 
                 //torrentManager = new PrioritizedTorrentManager(priority, magnetLink, Path.Combine(this.DownloadPath, magnetLink.Name), new TorrentSettings(), Path.Combine(this.CachePath, $"{magnetLink.InfoHash.ToHex()}.torrent"));
 
@@ -131,16 +134,24 @@ namespace Traktor.Core.Services.Downloader
                 return torrent;
             }
 
-            return Engine.DownloadMetadataAsync(magnetLink, new CancellationTokenSource().Token).ContinueWith(x =>
+            try
             {
-                var torrentData = x.Result;
-                if (Torrent.TryLoad(torrentData, out var torrent))
+                var cancel = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+                return Engine.DownloadMetadataAsync(magnetLink, cancel.Token).ContinueWith(x =>
                 {
-                    File.WriteAllBytes(torrentPath, torrentData);
-                    return torrent;
-                }
+                    var torrentData = x.Result;
+                    if (Torrent.TryLoad(torrentData, out var torrent))
+                    {
+                        File.WriteAllBytes(torrentPath, torrentData);
+                        return torrent;
+                    }
+                    return null;
+                }).Result;
+            }
+            catch (AggregateException)
+            {
                 return null;
-            }).Result;
+            }
         }
 
         private void StartTorrentManager(PrioritizedTorrentManager torrentManager)
