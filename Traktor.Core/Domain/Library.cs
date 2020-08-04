@@ -85,7 +85,7 @@ namespace Traktor.Core.Domain
                 this.AddRange(GetMediaFromTraktWatchlist().ToList());
             }
 
-            this.LastActivityUpdate = this.Max(x => x.CollectedAt ?? x.WatchlistedAt ?? DateTime.MinValue);
+            this.LastActivityUpdate = this.Any() ? this.Max(x => x.CollectedAt ?? x.WatchlistedAt ?? DateTime.MinValue) : DateTime.MinValue;
         }
 
         public List<LibraryChange> Update()
