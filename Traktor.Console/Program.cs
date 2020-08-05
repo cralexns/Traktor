@@ -47,7 +47,7 @@ namespace ConsoleApp2
         private static void RunTraktor(string[] args)
         {
             var logLevelSwitch = new Serilog.Core.LoggingLevelSwitch(Serilog.Events.LogEventLevel.Information);
-            Log.Logger = new LoggerConfiguration().MinimumLevel.ControlledBy(logLevelSwitch).WriteTo.Console(outputTemplate: "{Message}{NewLine}").WriteTo.File("Logs\\.log", outputTemplate: "{Timestamp:HH:mm:ss} [{Level:u3}] {Message:lj}{NewLine}{Exception}", rollingInterval: RollingInterval.Day).CreateLogger();
+            Log.Logger = new LoggerConfiguration().MinimumLevel.ControlledBy(logLevelSwitch).WriteTo.Console(outputTemplate: "{Message}{NewLine}").WriteTo.File("Logs/.log", outputTemplate: "{Timestamp:HH:mm:ss} [{Level:u3}] {Message:lj}{NewLine}{Exception}", rollingInterval: RollingInterval.Day).CreateLogger();
 
             try
             {
