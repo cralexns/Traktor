@@ -20,6 +20,12 @@ namespace Traktor.Core.Services
             this.response = response;
         }
 
+        APIStatus? status;
+        public TraktAPIException(APIStatus status) : base()
+        {
+            this.status = status;
+        }
+
         public enum APIStatus
         {
             AuthenticatedRequired,
@@ -29,6 +35,8 @@ namespace Traktor.Core.Services
         public APIStatus Status {
             get
             {
+                if (status.HasValue)
+                    return status.Value;
                 switch (this.response.StatusCode)
                 {
                     case System.Net.HttpStatusCode.Unauthorized:
@@ -129,6 +137,9 @@ namespace Traktor.Core.Services
 
         private T MakeRequest<T>(RestRequest request, object data = null) where T : new()
         {
+            if (string.IsNullOrEmpty(AccessToken))
+                throw new TraktAPIException(TraktAPIException.APIStatus.AuthenticatedRequired);
+
             if (data != null)
                 request.AddJsonBody(data);
 
