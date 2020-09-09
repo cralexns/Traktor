@@ -70,7 +70,7 @@ namespace Traktor.Core
                     throw new NotSupportedException($"Def: {Definition} is not valid in {Category}");
                 }
 
-                private bool Compare(IComparable value1, IComparable value2)
+                private bool Compare(IComparable value1 /*torrent value*/, IComparable value2 /*definition*/)
                 {
                     switch (this.Comparison)
                     {
@@ -306,7 +306,7 @@ namespace Traktor.Core
                 return new ScoutResult { Status = ScoutResult.State.Throttle };
 
             var results = GetIndexersForMedia(media).SelectMany(i=> (i.FindResultsFor(GetRedirectedMedia(media) ?? media) ?? new List<IndexerResult>()).Select((r) => (Result: r, Evaluation: EvaluateResult(r, media, requirements), Indexer: i)))
-                .OrderByDescending(x => x.Evaluation.Score).ThenByDescending(x => x.Indexer.Priority).ThenByDescending(x => (x.Result.Seeds * 10) + x.Result.Peers).ToList();
+                .OrderByDescending(x=>x.Evaluation.Passed).OrderByDescending(x => x.Evaluation.Score).ThenByDescending(x => x.Indexer.Priority).ThenByDescending(x => (x.Result.Seeds * 10) + x.Result.Peers).ToList();
 
             if (results.Any() && results.Any(x => x.Evaluation.Passed && x.Evaluation.Score == x.Evaluation.MaximumScore))
             {
