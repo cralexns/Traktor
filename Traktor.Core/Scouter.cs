@@ -211,6 +211,11 @@ namespace Traktor.Core
                 .Select(x => Activator.CreateInstance(x) as IIndexer).ToList();
         }
 
+        public void UpdateSettings(ScouterSettings settings)
+        {
+            this.Settings = settings;
+        }
+
         public class ScoutResult
         {
             public enum State

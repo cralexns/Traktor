@@ -12,6 +12,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Traktor.Core.Tools;
+using Microsoft.Extensions.Primitives;
 
 namespace ConsoleApp2
 {
@@ -22,6 +23,7 @@ namespace ConsoleApp2
         public static string ConnectivityScriptPath { get; set; }
 
         private static bool isBusy = false;
+        private static byte[] appSettingsHash;
         static void Main(string[] args)
         {
             var appName = nameof(Traktor);
@@ -109,6 +111,16 @@ namespace ConsoleApp2
 
                         Log.Information($"Running Traktor.Web @ {string.Join(", ", startup.Addresses)}");
                     }
+
+                    ChangeToken.OnChange(() => config.GetReloadToken(), () =>
+                    {
+                        var currentHash = FileService.ComputeHash("appsettings.json");
+                        if (currentHash.SequenceEqual(appSettingsHash))
+                            return;
+
+                        curator.UpdateConfiguration(LoadCuratorConfiguration(config, args));
+                        Log.Information("Updated configuration! (Changes to Downloader settings requires a restart to take effect)");
+                    });
 
                     ScheduleCuratorUpdates(curator, ts);
                 }

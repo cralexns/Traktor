@@ -28,6 +28,11 @@ namespace Traktor.Core.Services
 
         public FileService(FileConfiguration config)
         {
+            UpdateConfiguration(config);
+        }
+
+        public void UpdateConfiguration(FileConfiguration config)
+        {
             this.Config = config;
             if (!this.Config.MediaDestinations?.Any() ?? true)
                 throw new System.Configuration.ConfigurationErrorsException("No Media Destinations specified.");
@@ -39,6 +44,44 @@ namespace Traktor.Core.Services
             {
                 this.Config.MediaTypes = this.Config.MediaTypes.Select(x => x.StartsWith(".") ? x.Substring(1) : x).ToArray();
             }
+        }
+
+        public static byte[] ComputeHash(string filePath)
+        {
+            var runCount = 1;
+
+            while (runCount < 4)
+            {
+                try
+                {
+                    if (File.Exists(filePath))
+                    {
+                        using (var fs = File.OpenRead(filePath))
+                        {
+                            return System.Security.Cryptography.SHA1
+                                .Create().ComputeHash(fs);
+                        }
+                    }
+                    else
+                    {
+                        throw new FileNotFoundException();
+                    }
+                }
+                catch (IOException ex)
+                {
+                    if (runCount == 3 || ex.HResult != -2147024864)
+                    {
+                        throw;
+                    }
+                    else
+                    {
+                        Thread.Sleep(TimeSpan.FromSeconds(Math.Pow(2, runCount)));
+                        runCount++;
+                    }
+                }
+            }
+
+            return new byte[20];
         }
 
         public class FileResult

@@ -227,6 +227,13 @@ namespace Traktor.Core
             return CuratorResult.Started;
         }
 
+        public void UpdateConfiguration(CuratorConfiguration config)
+        {
+            this.Config = config;
+            this.Scouter.UpdateSettings(config.Scout);
+            this.File.UpdateConfiguration(config.File);
+        }
+
         private void Scouter_OnScouted(Scouter.ScoutResult arg1, Media arg2)
         {
             //throw new NotImplementedException();
