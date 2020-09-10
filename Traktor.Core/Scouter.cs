@@ -96,11 +96,14 @@ namespace Traktor.Core
                         case ParameterCategory.Source:
                         case ParameterCategory.Tag:
                             var req = GetEnum<IndexerResult.QualityTrait>(def);
-                            foreach (var trait in result.Traits)
-                            {
-                                if (Compare(trait, req))
-                                    return true;
-                            }
+                            if (this.Comparison == ParameterComparison.NotEqual)
+                                return result.Traits.All(x => Compare(x, req));
+                            else return result.Traits.Any(x => Compare(x, req));
+                            //foreach (var trait in result.Traits)
+                            //{
+                            //    if (Compare(trait, req))
+                            //        return true;
+                            //}
                             return false;
                         case ParameterCategory.Group:
                             return Compare(result.Group, def as string);
@@ -311,15 +314,12 @@ namespace Traktor.Core
                 return new ScoutResult { Status = ScoutResult.State.Throttle };
 
             var results = GetIndexersForMedia(media).SelectMany(i=> (i.FindResultsFor(GetRedirectedMedia(media) ?? media) ?? new List<IndexerResult>()).Select((r) => (Result: r, Evaluation: EvaluateResult(r, media, requirements), Indexer: i)))
-                .OrderByDescending(x=>x.Evaluation.Passed).OrderByDescending(x => x.Evaluation.Score).ThenByDescending(x => x.Indexer.Priority).ThenByDescending(x => (x.Result.Seeds * 10) + x.Result.Peers).ToList();
-
-            if (results.Any() && results.Any(x => x.Evaluation.Passed && x.Evaluation.Score == x.Evaluation.MaximumScore))
-            {
-                return new ScoutResult(results.Select(x => (x.Result, x.Evaluation.Score))) { Status = ScoutResult.State.Found };
-            }
+                .OrderByDescending(x=>x.Evaluation.Passed).ThenByDescending(x => x.Evaluation.Score).ThenByDescending(x => x.Indexer.Priority).ThenByDescending(x => (x.Result.Seeds * 10) + x.Result.Peers).ToList();
 
             if (results.Any())
-                return new ScoutResult(results.Select(x => (x.Result, x.Evaluation.Score))) { Status = results.Any(x=>x.Evaluation.Passed) ? ScoutResult.State.Found : ScoutResult.State.BelowReqs };
+            {
+                return new ScoutResult(results.Select(x => (x.Result, x.Evaluation.Score))) { Status = results.Any(x => x.Evaluation.Passed) ? ScoutResult.State.Found : ScoutResult.State.BelowReqs };
+            }
 
             return new ScoutResult { Status = ScoutResult.State.NotFound };
         }

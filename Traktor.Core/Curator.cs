@@ -547,6 +547,7 @@ namespace Traktor.Core
 
         private DateTime lastScoutDate = DateTime.MinValue;
         private static object updateLock = new object();
+
         public CuratorResult Update()
         {
             if (!System.Threading.Monitor.TryEnter(updateLock, 0))

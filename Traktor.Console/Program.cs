@@ -112,13 +112,16 @@ namespace ConsoleApp2
                         Log.Information($"Running Traktor.Web @ {string.Join(", ", startup.Addresses)}");
                     }
 
+                    appSettingsHash = FileService.ComputeHash("appsettings.json");
                     ChangeToken.OnChange(() => config.GetReloadToken(), () =>
                     {
                         var currentHash = FileService.ComputeHash("appsettings.json");
                         if (currentHash.SequenceEqual(appSettingsHash))
                             return;
 
+                        appSettingsHash = FileService.ComputeHash("appsettings.json");
                         curator.UpdateConfiguration(LoadCuratorConfiguration(config, args));
+                        
                         Log.Information("Updated configuration! (Changes to Downloader settings requires a restart to take effect)");
                     });
 
