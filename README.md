@@ -68,6 +68,24 @@ Sync local library with Trakt.tv
             <td>Rename files according to trakt data and the specified format. (Movie and Episode)</td>
             <td>"Episode": "{ShowTitle} - {Season}x{Number:00} - {Title}"</td>
         </tr>
+      <tr>
+            <td>RemoveWatchedMoviesAfter</td>
+            <td>TimeSpan</td>
+            <td>How long to wait after watching a movie before automatically removing it from library. (Disabled if unspecified)</td>
+            <td>"1.00:00:00"</td>
+        </tr>
+      <tr>
+            <td>RemoveWatchedSeasonsAfter</td>
+            <td>TimeSpan</td>
+            <td>How long to wait after watching a full season before automatically removing it from library. (Disabled if unspecified)</td>
+            <td>"00:30:00"</td>
+        </tr>
+      <tr>
+            <td>RemoveWatchedEpisodesAfter</td>
+            <td>TimeSpan</td>
+            <td>How long to wait after watching an episode before automatically removing it from library. (Disabled if unspecified)</td>
+            <td>"00:30:00"</td>
+        </tr>
         <tr>
             <th colspan="4">
                 Configuration section for the built-in torrent client (MonoTorrent)
