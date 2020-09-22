@@ -71,20 +71,20 @@ Sync local library with Trakt.tv
       <tr>
             <td>RemoveWatchedMoviesAfter</td>
             <td>TimeSpan</td>
-            <td>How long to wait after watching a movie before automatically removing it from library. (Disabled if unspecified)</td>
-            <td>Disabled</td>
+            <td>How long to wait after watching a movie before automatically removing it from library. (Disabled if null)</td>
+            <td>null</td>
         </tr>
       <tr>
             <td>RemoveWatchedSeasonsAfter</td>
             <td>TimeSpan</td>
-            <td>How long to wait after watching a full season before automatically removing it from library. (Disabled if unspecified)</td>
-            <td>Disabled</td>
+            <td>How long to wait after watching a full season before automatically removing it from library. (Disabled if null)</td>
+            <td>null</td>
         </tr>
       <tr>
             <td>RemoveWatchedEpisodesAfter</td>
             <td>TimeSpan</td>
-            <td>How long to wait after watching an episode before automatically removing it from library. (Disabled if unspecified)</td>
-            <td>Disabled</td>
+            <td>How long to wait after watching an episode before automatically removing it from library. (Disabled if null)</td>
+            <td>null</td>
         </tr>
         <tr>
             <th colspan="4">
