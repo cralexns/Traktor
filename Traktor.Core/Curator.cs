@@ -587,6 +587,7 @@ namespace Traktor.Core
                 /*
                  IDEA
                     1. Look into keeping the main executable running when Traktor crashes and add functionality to web interface to restart Traktor - this way you can always see the log!
+                    2. Create a webapi to support development of a web interface that can do everything the current one does and more!
                     4. Add support to Nyaa Indexer for seasonal anime numbering system. (SAO uses [Show Name - Season Name - Episode XX])
                         - Support multiple season torrents, fx.  "[anime4life.] Sword Art Online S1,S2+Extra Edition (BDRip 1080p AC3) Dual Audio"
                     ?. Implement auto update - could use https://github.com/Tyrrrz/Onova

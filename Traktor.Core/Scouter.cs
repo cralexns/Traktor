@@ -99,12 +99,6 @@ namespace Traktor.Core
                             if (this.Comparison == ParameterComparison.NotEqual)
                                 return result.Traits.All(x => Compare(x, req));
                             else return result.Traits.Any(x => Compare(x, req));
-                            //foreach (var trait in result.Traits)
-                            //{
-                            //    if (Compare(trait, req))
-                            //        return true;
-                            //}
-                            return false;
                         case ParameterCategory.Group:
                             return Compare(result.Group, def as string);
                         case ParameterCategory.SizeMb:

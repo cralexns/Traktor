@@ -82,7 +82,7 @@ namespace Traktor.Core.Domain
                 var initial = GetMoviesFromTraktCollection().Cast<Media>().Concat(GetEpisodesFromTraktCollection()).ToList();
 
                 this.AddRange(initial);
-                this.AddRange(GetMediaFromTraktWatchlist().ToList());
+                this.AddRange(GetMediaFromTraktWatchlist().ToList() ?? new List<Media>());
             }
 
             this.LastActivityUpdate = this.Any() ? this.Max(x => x.CollectedAt ?? x.WatchlistedAt ?? DateTime.MinValue) : DateTime.MinValue;
@@ -109,7 +109,7 @@ namespace Traktor.Core.Domain
                 if (activity.movies.watchlisted_at > LastActivityUpdate || activity.shows.watchlisted_at > LastActivityUpdate || activity.seasons.watchlisted_at > LastActivityUpdate || activity.episodes.watchlisted_at > LastActivityUpdate)
                 {
                     // Fetch entries from watchlist.
-                    var watchlistedMedia = GetMediaFromTraktWatchlist().ToList();
+                    var watchlistedMedia = GetMediaFromTraktWatchlist()?.ToList() ?? new List<Media>();
 
                     changes.AddRange(SynchronizeLibrary(watchlistedMedia.OfType<Movie>().ToList(), x => x.State != Media.MediaState.Collected && x.WatchlistedAt.HasValue));
                     changes.AddRange(SynchronizeLibrary(watchlistedMedia.OfType<Episode>().ToList(), x => x.State != Media.MediaState.Collected && x.WatchlistedAt.HasValue));
@@ -210,15 +210,23 @@ namespace Traktor.Core.Domain
 
                 if (string.IsNullOrEmpty(media.ImageUrl) && this.FetchImages != ImageFetchingBehavior.Never && (this.FetchImages != ImageFetchingBehavior.ExcludeCollection || media.State != Media.MediaState.Collected))
                 {
-                    var image = assets.GetAsset(media);
-                    if (!string.IsNullOrEmpty(image))
+                    List<Exception> assetExceptions = new List<Exception>();
+                    try
                     {
-                        media.ImageUrl = image;
-                        if (media is Episode episode)
+                        var image = assets.GetAsset(media);
+                        if (!string.IsNullOrEmpty(image))
                         {
-                            foreach (var episodeInShow in this.OfType<Episode>().Where(x => x.ShowId.Equals(episode.ShowId)))
-                                episodeInShow.ImageUrl = image;
+                            media.ImageUrl = image;
+                            if (media is Episode episode)
+                            {
+                                foreach (var episodeInShow in this.OfType<Episode>().Where(x => x.ShowId.Equals(episode.ShowId)))
+                                    episodeInShow.ImageUrl = image;
+                            }
                         }
+                    }
+                    catch (AggregateException ex) when (ex.InnerException is System.Net.Http.HttpRequestException)
+                    {
+                        // Ignore this..
                     }
                 }
             }
@@ -550,7 +558,7 @@ namespace Traktor.Core.Domain
 
         private IEnumerable<Media> GetWatchedMedia(DateTime startAt)
         {
-            var history = trakt.Many<Trakt.History>(new { start_at = startAt });
+            var history = trakt.Many<Trakt.History>(new { start_at = startAt.ToString("o") });
 
             foreach (var item in history)
             {
