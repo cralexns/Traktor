@@ -82,7 +82,7 @@ namespace Traktor.Core.Domain
                 var initial = GetMoviesFromTraktCollection().Cast<Media>().Concat(GetEpisodesFromTraktCollection()).ToList();
 
                 this.AddRange(initial);
-                this.AddRange(GetMediaFromTraktWatchlist().ToList() ?? new List<Media>());
+                this.AddRange(GetMediaFromTraktWatchlist().ToList());
             }
 
             this.LastActivityUpdate = this.Any() ? this.Max(x => x.CollectedAt ?? x.WatchlistedAt ?? DateTime.MinValue) : DateTime.MinValue;
@@ -109,7 +109,7 @@ namespace Traktor.Core.Domain
                 if (activity.movies.watchlisted_at > LastActivityUpdate || activity.shows.watchlisted_at > LastActivityUpdate || activity.seasons.watchlisted_at > LastActivityUpdate || activity.episodes.watchlisted_at > LastActivityUpdate)
                 {
                     // Fetch entries from watchlist.
-                    var watchlistedMedia = GetMediaFromTraktWatchlist()?.ToList() ?? new List<Media>();
+                    var watchlistedMedia = GetMediaFromTraktWatchlist()?.ToList();
 
                     changes.AddRange(SynchronizeLibrary(watchlistedMedia.OfType<Movie>().ToList(), x => x.State != Media.MediaState.Collected && x.WatchlistedAt.HasValue));
                     changes.AddRange(SynchronizeLibrary(watchlistedMedia.OfType<Episode>().ToList(), x => x.State != Media.MediaState.Collected && x.WatchlistedAt.HasValue));
@@ -648,9 +648,13 @@ namespace Traktor.Core.Domain
                     case "show":
                         var showId = item.show.ids.ToMediaId();
                         var seasons = trakt.Many<Domain.Trakt.Season>(new { id = showId.Trakt });
+
                         foreach (var season in seasons)
                         {
                             if (this.IgnoreSpecialSeasons && season.number == 0)
+                                continue;
+
+                            if (season.episodes == null)
                                 continue;
 
                             var totalEpisodes = season.episodes.Count;
