@@ -98,6 +98,7 @@ namespace ConsoleApp2
 
                 TraktService ts = new TraktService();
                 Curator curator = new Curator(ts);
+                Curator.OnDebug += Curator_OnDebug;
 
                 if (StartCurator(curator, ts, traktorConfig))
                 {
@@ -135,6 +136,12 @@ namespace ConsoleApp2
             }
         }
 
+        private static void Curator_OnDebug(string obj)
+        {
+            Log.Debug(obj);
+        }
+
+        private static DateTime lastUpdate = DateTime.Now;
         private static void ScheduleCuratorUpdates(Curator curator, TraktService ts)
         {
             Log.Information($"Scheduling update every {Interval} ..");
@@ -143,56 +150,79 @@ namespace ConsoleApp2
             Timer timer = null;
             using (timer = new Timer((t) =>
             {
-                timer.Change(Timeout.Infinite, Timeout.Infinite);
                 try
                 {
-                    isBusy = true;
-
-                    var result = UpdateCurator(curator);
-                    if (result.Is(Curator.CuratorResult.Error, Curator.CuratorResult.NotInitialized, Curator.CuratorResult.Stopped))
+                    Log.Debug("Timer triggered.");
+                    if (isBusy)
                     {
-                        Environment.Exit(1);
+                        Log.Debug("isBusy == true");
+                        if ((DateTime.Now - lastUpdate).TotalMinutes > 60)
+                        {
+                            Log.Error("Last Update is more than 60 minutes ago, something is probably wrong - terminating process.");
+                            Environment.Exit(1);
+                        }
+                        return;
                     }
 
-                    if (result.Is(Curator.CuratorResult.TraktAuthenticationRequired))
+                    //timer.Change(Timeout.Infinite, Timeout.Infinite);
+                    try
                     {
+                        isBusy = true;
 
-                        if (!AuthenticateTrakt(ts))
+                        Log.Debug("Calling Curator Update method..");
+                        var result = UpdateCurator(curator);
+
+                        if (result != Curator.CuratorResult.UpdateRunning)
+                            lastUpdate = DateTime.Now;
+
+                        if (result.Is(Curator.CuratorResult.Error, Curator.CuratorResult.NotInitialized, Curator.CuratorResult.Stopped))
                         {
                             Environment.Exit(1);
                         }
+
+                        if (result.Is(Curator.CuratorResult.TraktAuthenticationRequired))
+                        {
+
+                            if (!AuthenticateTrakt(ts))
+                            {
+                                Environment.Exit(1);
+                            }
+                        }
                     }
+                    catch (Exception ex)
+                    {
+                        if (!string.IsNullOrEmpty(ConnectivityScriptPath) && (ex.GetBaseException() is System.Net.Sockets.SocketException sEx && sEx.ErrorCode == 10013) || (ex is Traktor.Core.Services.Indexer.RarbgIndexer.RarBgTokenException rEx))
+                        {
+                            Log.Error($"Caught exception: {ex.Message} - potential connectivity issue, launch connectivity script: {ConnectivityScriptPath}");
+                            var process = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(ConnectivityScriptPath) { CreateNoWindow = true, RedirectStandardInput = true, RedirectStandardError = true });
+                            process.OutputDataReceived += (object sender, System.Diagnostics.DataReceivedEventArgs e) => Log.Debug($"[ConnectivityScript:Output] {e.Data}");
+                            process.ErrorDataReceived += (object sender, System.Diagnostics.DataReceivedEventArgs e) => Log.Debug($"[ConnectivityScript:Error] {e.Data}");
+                            process.WaitForExit();
+                        }
+                        else
+                        {
+                            Log.Error($"Caught exception: {ex.Message}");
+
+                            if (!KeepAlive)
+                            {
+                                Environment.Exit(1);
+                            }
+                        }
+                    }
+                    finally
+                    {
+                        isBusy = false;
+                    }
+
+                    //timer.Change((int)Interval.TotalMilliseconds, Timeout.Infinite);
                 }
                 catch (Exception ex)
                 {
-                    if (!string.IsNullOrEmpty(ConnectivityScriptPath) && (ex.GetBaseException() is System.Net.Sockets.SocketException sEx && sEx.ErrorCode == 10013) || (ex is Traktor.Core.Services.Indexer.RarbgIndexer.RarBgTokenException rEx))
-                    {
-                        Log.Error($"Caught exception: {ex.Message} - potential connectivity issue, launch connectivity script: {ConnectivityScriptPath}");
-                        var process = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(ConnectivityScriptPath) { CreateNoWindow = true, RedirectStandardInput = true, RedirectStandardError = true });
-                        process.OutputDataReceived += (object sender, System.Diagnostics.DataReceivedEventArgs e) => Log.Debug($"[ConnectivityScript:Output] {e.Data}");
-                        process.ErrorDataReceived += (object sender, System.Diagnostics.DataReceivedEventArgs e) => Log.Debug($"[ConnectivityScript:Error] {e.Data}");
-                        process.WaitForExit();
-                    }
-                    else
-                    {
-                        Log.Error($"Caught exception: {ex.Message}");
-
-                        if (!KeepAlive)
-                            throw;
-                    }
+                    Log.Error($"Caught Exception in Timer: {ex.Message}");
+                    Log.Error(ex.ToString());
                 }
-                finally
-                {
-                    isBusy = false;
-                }
-
-                timer.Change((int)Interval.TotalMilliseconds, Timeout.Infinite);
-
-                //if (logLevelSwitch.MinimumLevel == Serilog.Events.LogEventLevel.Debug)
-                //{
-                //    PrintDownloads(curator);
-                //}
-            }, null, 1, Timeout.Infinite))
+                
+            }, null, 1, (int)Interval.TotalMilliseconds))
             {
                 while (HandleInput(curator))
                 {

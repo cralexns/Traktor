@@ -144,20 +144,20 @@ namespace Traktor.Core.Services
             return Path.Combine(Path.IsPathRooted(this.Config.MediaDestinations[mediaType]) ? this.Config.MediaDestinations[mediaType] : Path.Combine(Environment.CurrentDirectory, this.Config.MediaDestinations[mediaType]), uniqueName);
         }
 
-        private Media GetMediaForFile(string fileName, List<Media> relatedMedia, IEnumerable<Indexer.IIndexer> indexers)
-        {
-            if (relatedMedia.Count == 1)
-                return relatedMedia.FirstOrDefault();
+        //private Media GetMediaForFile(string fileName, List<Media> relatedMedia, IEnumerable<Indexer.IIndexer> indexers)
+        //{
+        //    if (relatedMedia.Count == 1)
+        //        return relatedMedia.FirstOrDefault();
 
-            if (relatedMedia.Any(x=>x is Episode))
-            {
-                var numbering = indexers.Select(x => x.GetNumbering(fileName)).OrderByDescending(x => x.Episode.HasValue.ToInt() + x.Season.HasValue.ToInt() + x.Range.HasValue.ToInt()).FirstOrDefault();
-                return relatedMedia.Cast<Episode>().FirstOrDefault(x => x.Season == numbering.Season && x.Number == numbering.Episode);
-            }
+        //    if (relatedMedia.Any(x=>x is Episode))
+        //    {
+        //        var numbering = indexers.Select(x => x.GetNumbering(fileName)).OrderByDescending(x => x.Episode.HasValue.ToInt() + x.Season.HasValue.ToInt() + x.Range.HasValue.ToInt()).FirstOrDefault();
+        //        return relatedMedia.Cast<Episode>().FirstOrDefault(x => x.Season == numbering.Season && x.Number == numbering.Episode);
+        //    }
             
-            var fileCompareName = Indexer.NyaaIndexer.TransformForComparison(fileName);
-            return relatedMedia.OrderBy(x => Utility.GetDamerauLevenshteinDistance(fileCompareName, Indexer.NyaaIndexer.TransformForComparison(x.GetCanonicalName()))).FirstOrDefault();
-        }
+        //    var fileCompareName = Indexer.NyaaIndexer.TransformForComparison(fileName);
+        //    return relatedMedia.OrderBy(x => Utility.GetDamerauLevenshteinDistance(fileCompareName, Indexer.NyaaIndexer.TransformForComparison(x.GetCanonicalName()))).FirstOrDefault();
+        //}
 
         public FileResult RenameMediaFileTo(Media media, string newFileName)
         {

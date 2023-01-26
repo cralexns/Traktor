@@ -28,7 +28,7 @@ namespace Traktor.Core.Domain.Trakt
         public DateTime? updated_at { get; set; }
         public object trailer { get; set; }
         public string homepage { get; set; }
-        public int rating { get; set; }
+        public decimal rating { get; set; }
         public int votes { get; set; }
         public int comment_count { get; set; }
         public string language { get; set; }

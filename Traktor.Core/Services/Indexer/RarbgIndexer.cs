@@ -9,6 +9,7 @@ using Traktor.Core.Extensions;
 using ComposableAsync;
 using System.Threading.Tasks;
 using System.Text.RegularExpressions;
+using RestSharp.Serializers.NewtonsoftJson;
 
 namespace Traktor.Core.Services.Indexer
 {
@@ -47,21 +48,24 @@ namespace Traktor.Core.Services.Indexer
         public RarbgIndexer()
         {
             this.client = new RestClient(ApiUrl);
+            this.client.UseNewtonsoftJson();
             if (string.IsNullOrEmpty(Token))
             {
                 GetToken();
             }
         }
 
-        private bool GetToken()
+        private async Task<bool> GetToken()
         {
+            Curator.Debug("GetToken()");
+
             var requestToken = new RestRequest();
             requestToken.AddParameter("app_id", this.AppId);
             requestToken.AddParameter("get_token", "get_token");
 
-            var response = MakeRequest<RarBgBaseObject>(requestToken, false).Result;
+            var response = await MakeRequest<RarBgBaseObject>(requestToken, false);
 
-            if (response.IsSuccessful)
+            if (response.StatusCode == System.Net.HttpStatusCode.OK)
             {
                 Token = response.Data.token;
                 return true;
@@ -69,20 +73,35 @@ namespace Traktor.Core.Services.Indexer
             throw new RarBgTokenException();
         }
 
-        private async Task<IRestResponse<T>> MakeRequest<T>(RestRequest request, bool handleTokenError = true) where T : RarBgBaseObject, new()
+        private async Task<RestResponse<T>> MakeRequest<T>(RestRequest request, bool handleTokenError = true, int? retries = null) where T : RarBgBaseObject, new()
         {
-            await limiter;
+            if (!retries.HasValue)
+            {
+                Curator.Debug("Await limiter..");
+                await limiter;
+            }
+                
 
+            Curator.Debug($"RestClient Execute()");
             var response = client.Execute<T>(request);
-            if (response.IsSuccessful && response.Data.IsError() && handleTokenError)
+            Curator.Debug("RestClient Execute() Done");
+
+            if (response.StatusCode == System.Net.HttpStatusCode.OK && response.Data != null && response.Data.IsError() && handleTokenError)
             {
                 if (response.Data.error_code == 2 || response.Data.error_code == 4)
                 {
-                    if (GetToken())
+                    if (await GetToken())
                         return await MakeRequest<T>(request, false);
                 }
                 else if (response.Data.error_code != 10 && response.Data.error_code != 20)
                     throw new Exception($"API error: {response.Data.error} ({response.Data.error_code})");
+
+                if (response.Data.rate_limit == 1 && response.Data.error_code == 20 && (!retries.HasValue || retries > 0))
+                {
+                    var remainingRetries = (retries ?? 10)-1;
+                    return await MakeRequest<T>(request, true, remainingRetries);
+                }
+                // rarbg returns error_code=20 and rate_limit=1 if the server is overloaded, could include a few retries here to improve scouting. (supposedly retrying theres a chance to hit another server)
             }
             return response;
         }
@@ -121,6 +140,8 @@ namespace Traktor.Core.Services.Indexer
 
         private IEnumerable<IndexerResult> GetResultsForMovie(Movie movie)
         {
+            Curator.Debug("GetResultsForMovie()");
+
             var category = "movies";
             if (!string.IsNullOrEmpty(movie.Id.IMDB))
                 return QueryApi(QueryType.IMDB, movie.Id.IMDB, category);
@@ -133,6 +154,8 @@ namespace Traktor.Core.Services.Indexer
 
         private IEnumerable<IndexerResult> GetResultsForEpisode(Episode episode)
         {
+            Curator.Debug("GetResultsForEpisode()");
+
             var category = "tv";
             IEnumerable<IndexerResult> results = null;
             if (!string.IsNullOrEmpty(episode.ShowId.IMDB))
@@ -145,16 +168,22 @@ namespace Traktor.Core.Services.Indexer
 
         private IEnumerable<IndexerResult> QueryApi(QueryType type, string query, string category)
         {
+            Curator.Debug("QueryApi()");
             var request = BuildSearchRequest(QueryType.IMDB, query, category);
 
+            Curator.Debug("QueryApi() -> MakeRequest()");
             var response = MakeRequest<RarbgApiResponse>(request).Result;
             if (response.IsSuccessful)
                 return ParseResults(response.Data);
+            else if (response.ErrorException != null)
+                throw new Exception($"API error: {response.ErrorMessage}");
             return null;
         }
 
         private IEnumerable<IndexerResult> ParseResults(RarbgApiResponse response)
         {
+            Curator.Debug("ParseResults()");
+
             if (response.error_code == 20 || response.torrent_results == null)
                 yield break;
 
@@ -247,6 +276,7 @@ namespace Traktor.Core.Services.Indexer
         public string error { get; set; }
         public int error_code { get; set; }
         public string token { get; set; }
+        public int rate_limit { get; set; }
 
         public bool IsError() => error_code > 0;
     }

@@ -9,13 +9,14 @@ using Traktor.Core.Domain.Trakt;
 using System.Threading.Tasks;
 using System.Threading;
 using System.Collections;
+using RestSharp.Serializers.NewtonsoftJson;
 
 namespace Traktor.Core.Services
 {
     public class TraktAPIException : Exception
     {
-        IRestResponse response;
-        public TraktAPIException(IRestResponse response, string message = null, Exception innerException = null) : base(message, innerException)
+        RestResponse response;
+        public TraktAPIException(RestResponse response, string message = null, Exception innerException = null) : base(message, innerException)
         {
             this.response = response;
         }
@@ -107,6 +108,7 @@ namespace Traktor.Core.Services
                 throw new Exception("trakt api clientId or clientSecret missing");
 
             client = new RestClient(ConfigurationManager.AppSettings["trakt.apiendpoint"] ?? "https://api.trakt.tv");
+            client.UseNewtonsoftJson();
             client.AddDefaultHeader("Content-Type", "application/json");
             client.AddDefaultHeader("trakt-api-key", clientId);
             client.AddDefaultHeader("trakt-api-version", "2");
@@ -126,7 +128,7 @@ namespace Traktor.Core.Services
             return MakeRequest<T>(objInstance.BuildRestRequest(parameters), data);
         }
 
-        private T MakeRequest<T>(string resource, Method method = Method.GET, object data = null) where T : new()
+        private T MakeRequest<T>(string resource, Method method = Method.Get, object data = null) where T : new()
         {
             var request = new RestRequest(resource, method);
             if (data != null)
@@ -193,7 +195,7 @@ namespace Traktor.Core.Services
 
         public bool AuthenticateDeviceWaitForActivation(DeviceAuthentication dAuth)
         {
-            var pollRequest = new RestRequest("oauth/device/token", Method.POST);
+            var pollRequest = new RestRequest("oauth/device/token", Method.Post);
             pollRequest.AddJsonBody(new
             {
                 code = dAuth.device_code,
@@ -205,6 +207,7 @@ namespace Traktor.Core.Services
             var interval = dAuth.interval;
             while (elapsed < dAuth.expires_in)
             {
+                
                 var pollResponse = client.Execute<dynamic>(pollRequest);
                 switch ((int)pollResponse.StatusCode)
                 {
@@ -232,7 +235,7 @@ namespace Traktor.Core.Services
 
         public DeviceAuthentication AuthenticateDevice()
         {
-            var request = new RestRequest("oauth/device/code", Method.POST);
+            var request = new RestRequest("oauth/device/code", Method.Post);
             request.AddJsonBody(new
             {
                 client_id = clientId,
@@ -248,7 +251,7 @@ namespace Traktor.Core.Services
 
         public void AuthenticateOAuth(string code, bool refresh = false)
         {
-            var request = new RestRequest("oauth/token", Method.POST);
+            var request = new RestRequest("oauth/token", Method.Post);
             request.AddJsonBody(new
             {
                 code = !refresh ? code : null,

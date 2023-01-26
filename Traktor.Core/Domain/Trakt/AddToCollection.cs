@@ -6,7 +6,7 @@ namespace Traktor.Core.Domain.Trakt
 {
     public class AddToCollection : TraktAPIObjectBase
     {
-        public AddToCollection() : base("https://api.trakt.tv/sync/collection", RestSharp.Method.POST) { }
+        public AddToCollection() : base("https://api.trakt.tv/sync/collection", RestSharp.Method.Post) { }
 
         public class Added
         {

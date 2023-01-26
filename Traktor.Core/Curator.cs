@@ -169,6 +169,8 @@ namespace Traktor.Core
 
         public event Action<CuratorEvent> OnCuratorEvent;
 
+        public static event Action<string> OnDebug;
+
         public class CuratorEvent
         {
             public enum EventType
@@ -178,6 +180,12 @@ namespace Traktor.Core
             }
             public EventType Type { get; set; }
             public string Message { get; set; }
+        }
+
+        internal static void Debug(string text)
+        {
+            if (OnDebug != null)
+                OnDebug.Invoke(text);
         }
 
         public CuratorResult Initialize(CuratorConfiguration config,
@@ -484,12 +492,15 @@ namespace Traktor.Core
 
             mediaToScout = mediaToScout ?? this.Library.ToList();
 
+            Debug("Iterate media to scout of type Episode");
             // Special scouting for episodes to determine if we should download a full season or single episodes.
             foreach (var season in mediaToScout.OfType<Episode>().State(Media.MediaState.Available).HasMagnet(false).GroupBy(x => new { x.ShowId.Trakt, x.Season }).ToList())
             {
                 foreach (var episode in season.HasMagnet(false))
                 {
+                    Debug("Call Scouter.Scout()");
                     var scoutResult = this.Scouter.Scout(episode, force);
+                    Debug("Result Scouter.Scout()");
                     scoutResult.RemoveBannedLinks(bannedUris);
                     switch (scoutResult.Status)
                     {
@@ -519,13 +530,16 @@ namespace Traktor.Core
                     }
                 }
 
+                Debug("Start downloads in scout");
                 // Start downloads.
                 foreach (var episodeToDownload in season.HasMagnet().OrderBy(x => x.Season).ThenBy(x => x.Number))
                 {
+                    Debug("Start download");
                     this.Downloader.Download(episodeToDownload.Magnet, episodeToDownload.GetPriority());
                 }
             }
 
+            Debug("Scout media of type Movie");
             foreach (var media in mediaToScout.OfType<Movie>().State(Media.MediaState.Available).HasMagnet(false))
             {
                 var scoutResult = this.Scouter.Scout(media, true);
@@ -536,6 +550,7 @@ namespace Traktor.Core
                     case Scouter.ScoutResult.State.Found:
                     case Scouter.ScoutResult.State.BelowReqs when ignoreRequirements.Contains(media):
                         media.AddMagnets(scoutResult.Results);
+                        Debug("Start download");
                         this.Downloader.Download(media.Magnet, media.GetPriority());
                         break;
                     case Scouter.ScoutResult.State.Timeout:
@@ -550,7 +565,7 @@ namespace Traktor.Core
 
         public CuratorResult Update()
         {
-            if (!System.Threading.Monitor.TryEnter(updateLock, 0))
+            if (!System.Threading.Monitor.TryEnter(updateLock))
                 return CuratorResult.UpdateRunning;
 
             try
@@ -558,18 +573,23 @@ namespace Traktor.Core
                 if (this.Library == null)
                     return CuratorResult.NotInitialized;
 
+                Debug("Enter UpdateLibrary()");
                 var libraryChanges = UpdateLibrary();
+                Debug("Exit UpdateLibrary()");
                 if (libraryChanges == null)
                     return CuratorResult.TraktAuthenticationRequired;
 
                 // Start available downloads..
+                Debug("Iterate available media in library and call Downloader.Download on available items.");
                 foreach (var media in this.Library.State(Media.MediaState.Available).HasMagnet().Where(x => this.Downloader.GetStatus(x.Magnet) == null))
                 {
+                    Debug("Call Downloader.Download()");
                     this.Downloader.Download(media.Magnet, media.GetPriority());
                 }
 
                 if (lastScoutDate.Add(this.Config.ScoutFrequency) < DateTime.Now)
                 {
+                    Debug("ScoutAndStartDownloads()");
                     ScoutAndStartDownloads();
                 }
                 else
@@ -582,10 +602,13 @@ namespace Traktor.Core
                 if (this.Config.EnsureDownloadIntegrity)
                     EnsureDownloadIntegrify();
 
+                Debug("HandleLibraryCleanup()");
                 HandleLibraryCleanup();
 
                 /*
                  IDEA
+                    0. Make tag matching case insensitive since some torrent tags like 1080P exists, where we expect 1080p.
+                    0.1 Upgrade to latest framework version (Standard 5.0?)
                     1. Look into keeping the main executable running when Traktor crashes and add functionality to web interface to restart Traktor - this way you can always see the log!
                     2. Create a webapi to support development of a web interface that can do everything the current one does and more!
                     4. Add support to Nyaa Indexer for seasonal anime numbering system. (SAO uses [Show Name - Season Name - Episode XX])

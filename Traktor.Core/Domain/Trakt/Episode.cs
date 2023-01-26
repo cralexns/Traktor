@@ -16,7 +16,7 @@ namespace Traktor.Core.Domain.Trakt
         public string overview { get; set; }
         public DateTime? first_aired { get; set; }
         public DateTime updated_at { get; set; }
-        public int rating { get; set; }
+        public decimal rating { get; set; }
         public int votes { get; set; }
         public int comment_count { get; set; }
         public List<string> available_translations { get; set; }

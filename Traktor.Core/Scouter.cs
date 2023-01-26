@@ -264,7 +264,9 @@ namespace Traktor.Core
 
         public ScoutResult Scout(Media media, bool force = false)
         {
+            Curator.Debug("Call GetScoutResult()");
             var result = GetScoutResult(media, force);
+            Curator.Debug("GetScoutResult() Done");
 
             if (result.Status.Is(ScoutResult.State.BelowReqs, ScoutResult.State.Found) && !media.FirstSpottedAt.HasValue)
             {
@@ -296,7 +298,9 @@ namespace Traktor.Core
 
         private ScoutResult GetScoutResult(Media media, bool force = false)
         {
+            Curator.Debug("GetRequirementsForMedia() Start");
             var requirements = GetRequirementsForMedia(media);
+            Curator.Debug("GetRequirementsForMedia() End");
 
             if (!force && media.LastScoutedAt.HasValue && requirements.Timeout.HasValue && new DateTime(Math.Max(media.Release?.Ticks ?? media.StateDate.Ticks, media.StateDate.Ticks)).Add(requirements.Timeout.Value) < DateTime.Now)
                 return new ScoutResult { Status = ScoutResult.State.Timeout };
@@ -307,7 +311,8 @@ namespace Traktor.Core
             if (!force && requirements.NoResultThrottle.HasValue && media.LastScoutedAt.HasValue && !media.FirstSpottedAt.HasValue && media.LastScoutedAt.Value.Add(requirements.NoResultThrottle.Value) > DateTime.Now)
                 return new ScoutResult { Status = ScoutResult.State.Throttle };
 
-            var results = GetIndexersForMedia(media).SelectMany(i=> (i.FindResultsFor(GetRedirectedMedia(media) ?? media) ?? new List<IndexerResult>()).Select((r) => (Result: r, Evaluation: EvaluateResult(r, media, requirements), Indexer: i)))
+            Curator.Debug("Get indexers and FindResults.");
+            var results = GetIndexersForMedia(media).SelectMany(i=> GetIndexerResults(i, GetRedirectedMedia(media) ?? media).Select((r) => (Result: r, Evaluation: EvaluateResult(r, media, requirements), Indexer: i)))
                 .OrderByDescending(x=>x.Evaluation.Passed).ThenByDescending(x => x.Evaluation.Score).ThenByDescending(x => x.Indexer.Priority).ThenByDescending(x => (x.Result.Seeds * 10) + x.Result.Peers).ToList();
 
             if (results.Any())
@@ -316,6 +321,12 @@ namespace Traktor.Core
             }
 
             return new ScoutResult { Status = ScoutResult.State.NotFound };
+        }
+
+        private List<IndexerResult> GetIndexerResults(IIndexer indexer, Media media)
+        {
+            Curator.Debug($"Calling FindResultsFor on {indexer.Name} for {media}");
+            return indexer.FindResultsFor(media) ?? new List<IndexerResult>();
         }
 
         public Media GetRedirectedMedia(Media media)

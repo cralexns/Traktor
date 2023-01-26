@@ -45,13 +45,13 @@ namespace Traktor.Core.Domain.Trakt
             }
         }
 
-        public TraktAPIObjectBase(TraktAPIRequest request, Method method = Method.GET)
+        public TraktAPIObjectBase(TraktAPIRequest request, Method method = Method.Get)
         {
             this.Request = request;
             this.RestSharpMethod = method;
         }
 
-        public TraktAPIObjectBase(string action, Method method = Method.GET)
+        public TraktAPIObjectBase(string action, Method method = Method.Get)
         {
             this.Request = new TraktAPIRequest(action);
             this.RestSharpMethod = method;
