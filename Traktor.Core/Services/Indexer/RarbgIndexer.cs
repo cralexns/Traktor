@@ -176,7 +176,15 @@ namespace Traktor.Core.Services.Indexer
             if (response.IsSuccessful)
                 return ParseResults(response.Data);
             else if (response.ErrorException != null)
-                throw new Exception($"API error: {response.ErrorMessage}");
+            {
+                if (response.StatusCode == (System.Net.HttpStatusCode)520)
+                {
+                    Curator.Debug("QueryApi() -> Cloudflare returned a 520 .. ignore it and return empty result.");
+                    return null;
+                }    
+                throw new Exception($"API error ({response.StatusCode}): {response.ErrorMessage}");
+            }
+                
             return null;
         }
 
