@@ -95,6 +95,7 @@ namespace Traktor.Core.Domain
             var activity = trakt.One<Trakt.LastActivity>();
             if (activity.all > LastActivityUpdate)
             {
+                Curator.Debug("Enter LastActivityUpdate");
                 if (activity.episodes.collected_at > LastActivityUpdate)
                 {
                     // Fetch collection and synchronize with local collection, check for added items and removed items (by comparing every item in trakt collection with local collection)
@@ -146,6 +147,7 @@ namespace Traktor.Core.Domain
 
             if (LastCalendarUpdate.Date < DateTime.UtcNow.Date)
             {
+                Curator.Debug("Enter LastCalendarUpdate");
                 var startDate = LastCalendarUpdate;
                 this.LastCalendarUpdate = DateTime.UtcNow;
 
@@ -172,6 +174,7 @@ namespace Traktor.Core.Domain
                 changes.AddRange(SynchronizeLibrary(movies, null, x => x.State == Media.MediaState.Awaiting, UpdateFromCalendar));
             }
 
+            Curator.Debug("Update MediaStates");
             // Update media states.
             foreach (var media in this)
             {
@@ -228,6 +231,10 @@ namespace Traktor.Core.Domain
                     {
                         // Ignore this..
                     }
+                    catch (Exception ex)
+                    {
+                        Curator.Debug($"Failed getting assets for {media} - {ex.Message}");
+                    }
                 }
             }
 
@@ -245,6 +252,8 @@ namespace Traktor.Core.Domain
             //    LastPhysicalReleaseUpdate = DateTime.Now;
             //}
 
+
+            Curator.Debug("Populate genres");
             // Populate awaiting/available shows with genres. (We have to do this on a show basis since that info isn't on the individual episode.
             foreach (var groupedEpisodes in this.OfType<Episode>().State(Media.MediaState.Awaiting, Media.MediaState.Available).Where(x => x.Genres == null).GroupBy(x => x.ShowId))
             {
@@ -253,6 +262,7 @@ namespace Traktor.Core.Domain
                     episode.Genres = genres?.ToArray() ?? new string[0];
             }
 
+            Curator.Debug("Trigger OnChange");
             TriggerOnChange(changes);
             return changes;
         }
@@ -765,7 +775,7 @@ namespace Traktor.Core.Domain
 
         private List<string> GetGenresForShow(Media.MediaId showId)
         {
-            return trakt.One<Trakt.Show>(new { id = showId.Trakt }).genres;
+            return trakt.One<Trakt.Show>(new { id = showId.Trakt })?.genres;
         }
 
         private T GetSingleMedia<T>(T media) where T : Media
