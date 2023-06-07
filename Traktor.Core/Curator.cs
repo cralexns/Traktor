@@ -499,6 +499,7 @@ namespace Traktor.Core
                 foreach (var episode in season.HasMagnet(false))
                 {
                     Debug("Call Scouter.Scout()");
+
                     var scoutResult = this.Scouter.Scout(episode, force);
                     Debug("Result Scouter.Scout()");
                     scoutResult.RemoveBannedLinks(bannedUris);
@@ -528,6 +529,7 @@ namespace Traktor.Core
                             this.Library.SetMediaAsAbandoned(episode);
                             break;
                     }
+                    
                 }
 
                 Debug("Start downloads in scout");

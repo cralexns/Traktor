@@ -1,8 +1,10 @@
 ﻿using RestSharp;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 using Traktor.Core.Domain;
 using Traktor.Core.Extensions;
 
@@ -17,7 +19,7 @@ namespace Traktor.Core.Services.Indexer
 
         public int Priority => 50;
 
-        public string ApiUrl { get; set; } = "https://eztv.io/api";
+        public string ApiUrl { get; set; } = "https://eztv.re/api";
 
         private RestClient client;
         public EzTvIndexer()
@@ -31,8 +33,10 @@ namespace Traktor.Core.Services.Indexer
             {
                 var searchFor = episode.ShowId.IMDB.Substring(2);
 
+                var normalizedShowTitle = string.Join("", episode.ShowTitle.ToList().Where(x => Regex.Match(x.ToString(), @"[\w0-9\s]").Success));
+
                 var results = Search(searchFor);
-                return results.Where(x => x.Name == episode.ShowTitle && x.Season == episode.Season && (x.Episode == episode.Number|| x.IsFullSeason)).ToList();
+                return results.Where(x => (x.Name == episode.ShowTitle || x.Name == normalizedShowTitle) && x.Season == episode.Season && (x.Episode == episode.Number|| x.IsFullSeason)).ToList();
             }
             return null;
         }

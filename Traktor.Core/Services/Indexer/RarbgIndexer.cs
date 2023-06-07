@@ -15,9 +15,9 @@ namespace Traktor.Core.Services.Indexer
 {
     public class RarbgIndexer : IndexerBase, IIndexer
     {
-        public class RarBgTokenException : Exception
+        public class RarBgTokenException : IndexerException
         {
-            public RarBgTokenException() : base("Failed to acquire token.")
+            public RarBgTokenException() : base(null, "Failed to acquire token.")
             {
 
             }
@@ -182,7 +182,7 @@ namespace Traktor.Core.Services.Indexer
                     Curator.Debug("QueryApi() -> Cloudflare returned a 520 .. ignore it and return empty result.");
                     return null;
                 }    
-                throw new Exception($"API error ({response.StatusCode}): {response.ErrorMessage}");
+                throw new IndexerException(this, $"API error ({response.StatusCode}): {response.ErrorMessage}");
             }
                 
             return null;

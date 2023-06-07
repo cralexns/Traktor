@@ -325,8 +325,17 @@ namespace Traktor.Core
 
         private List<IndexerResult> GetIndexerResults(IIndexer indexer, Media media)
         {
-            Curator.Debug($"Calling FindResultsFor on {indexer.Name} for {media}");
-            return indexer.FindResultsFor(media) ?? new List<IndexerResult>();
+            try
+            {
+                Curator.Debug($"Calling FindResultsFor on {indexer.Name} for {media}");
+                var results = indexer.FindResultsFor(media) ?? new List<IndexerResult>();
+                return results;
+            }
+            catch (IndexerBase.IndexerException indexEx)
+            {
+                Curator.Debug($"Indexer {indexEx.Indexer?.GetType().Name} failed while scouting {media}: {indexEx.Message}");
+                return new List<IndexerResult>();
+            }
         }
 
         public Media GetRedirectedMedia(Media media)
