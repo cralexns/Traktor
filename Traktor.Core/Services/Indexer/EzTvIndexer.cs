@@ -80,7 +80,8 @@ namespace Traktor.Core.Services.Indexer
                 Date = DateTimeOffset.FromUnixTimeSeconds(torrent.date_released_unix).UtcDateTime,
                 SizeBytes = torrent.size_bytes.ToLong() ?? 0,
                 Season = torrent.season.ToInt(),
-                Episode = torrent.episode.ToInt()
+                Episode = torrent.episode != "0" ? torrent.episode.ToInt() : null,
+                IMDB = $"tt{torrent.imdb_id}"
             };
 
             var numbering = GetNumbering(torrent.title);
