@@ -1,8 +1,12 @@
-﻿using System;
+﻿using MonoTorrent.Client;
+using MonoTorrent;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.IO;
 using System.Linq;
+using System.Net;
 using System.Reflection;
 using System.Text;
 using Traktor.Core.Domain;
@@ -253,9 +257,28 @@ namespace Traktor.Core
             {
                 public string Title { get; set; }
                 public bool IsFullSeason { get; set; }
+
+                
                 public Uri Link { get; set; }
                 public int Score { get; set; }
                 public string Source { get; set; }
+
+                private bool _checked = false;
+                public void ConvertLink()
+                {
+                    if (!_checked)
+                    {
+                        _checked = true;
+                        if (Link.Scheme.StartsWith("http"))
+                        {
+                            byte[] torrentData = new WebClient().DownloadData(Link.ToString());
+                            if (Encoding.UTF8.GetString(torrentData, 0, 7) != "magnet:")
+                            {
+                                Link = new Uri(Encoding.UTF8.GetString(torrentData));
+                            }
+                        }
+                    }
+                }
 
                 public Magnet(IndexerResult result, int score)
                 {

@@ -190,7 +190,12 @@ namespace Traktor.Core.Domain
             this.Magnets = magnets;
 
             if (this.Magnet == null || forceSelect)
-                this.SetMagnet(magnets.FirstOrDefault().Link, forceSelect);
+            {
+                var magnet = magnets.FirstOrDefault();
+                magnet.ConvertLink();
+
+                this.SetMagnet(magnet.Link, forceSelect);
+            }
         }
 
         public override string ToString()
@@ -272,7 +277,12 @@ namespace Traktor.Core.Domain
             this.Magnets = magnets;
 
             if (this.Magnet == null || forceSelect)
-                this.SetMagnet(magnets.OrderByDescending(x=>x.Score).ThenByDescending(x => x.IsFullSeason == selectFullSeason).FirstOrDefault().Link, forceSelect);
+            {
+                var magnet = magnets.OrderByDescending(x => x.Score).ThenByDescending(x => x.IsFullSeason == selectFullSeason).FirstOrDefault();
+                magnet.ConvertLink();
+
+                this.SetMagnet(magnet.Link, forceSelect);
+            }
         }
 
         public override bool Equals(Media other)
