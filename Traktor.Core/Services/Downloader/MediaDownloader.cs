@@ -9,6 +9,9 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net;
+using System.Net.Http;
+using System.Runtime.CompilerServices;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Traktor.Core.Extensions;
@@ -96,29 +99,54 @@ namespace Traktor.Core.Services.Downloader
         }
 
         
-        public void Download(Uri magnetUri, int priority = 0)
+        public void Download(Uri downloadUrl, int priority = 0)
         {
-            var magnetLink = MagnetLink.FromUri(magnetUri);
             PrioritizedTorrentManager torrentManager = null;
 
             lock (listLock)
             {
-                if (this.Torrents.ContainsKey(magnetUri))
+                if (this.Torrents.ContainsKey(downloadUrl))
                     return;
 
-                var torrent = GetTorrentFile(magnetLink);
-                if (torrent != null)
+                Torrent torrent = null;
+                if (downloadUrl.Scheme.StartsWith("http"))
                 {
-                    torrentManager = new PrioritizedTorrentManager(priority, torrent, Path.Combine(this.DownloadPath, magnetLink.Name), new TorrentSettings());
+                    byte[] torrentData = new WebClient().DownloadData(downloadUrl.ToString());
+                    if (Encoding.UTF8.GetString(torrentData,0,7) != "magnet:")
+                    {
+                        using (var stream = new MemoryStream(torrentData))
+                        {
+                            torrent = Torrent.Load(stream);
+                        }
+
+                        string torrentFileName = Path.Combine(this.CachePath, $"{torrent.Name}.torrent");
+                        File.WriteAllBytes(torrentFileName, torrentData);
+
+                        if (torrent != null)
+                        {
+                            torrentManager = new PrioritizedTorrentManager(priority, torrent, Path.Combine(this.DownloadPath, torrent.Name), new TorrentSettings());
+                        }
+                    }
+                    else
+                    {
+                        downloadUrl = new Uri(Encoding.UTF8.GetString(torrentData));
+                    }
                 }
-                else
+
+                if (downloadUrl.Scheme == "magnet")
                 {
-                    torrentManager = new PrioritizedTorrentManager(priority, magnetLink, Path.Combine(this.DownloadPath, magnetLink.Name), new TorrentSettings(), Path.Combine(this.CachePath, $"{magnetLink.InfoHash.ToHex()}.torrent"));
+                    var magnetLink = MagnetLink.FromUri(downloadUrl);
+                    torrent = GetTorrentFile(magnetLink);
+
+                    if (torrent == null)
+                    {
+                        torrentManager = new PrioritizedTorrentManager(priority, magnetLink, Path.Combine(this.DownloadPath, magnetLink.Name), new TorrentSettings(), Path.Combine(this.CachePath, $"{magnetLink.InfoHash.ToHex()}.torrent"));
+                    }
                 }
 
                 //torrentManager = new PrioritizedTorrentManager(priority, magnetLink, Path.Combine(this.DownloadPath, magnetLink.Name), new TorrentSettings(), Path.Combine(this.CachePath, $"{magnetLink.InfoHash.ToHex()}.torrent"));
 
-                this.Torrents.Add(magnetUri, torrentManager);
+                this.Torrents.Add(downloadUrl, torrentManager);
             }
 
             StartTorrentManager(torrentManager);

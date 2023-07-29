@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Runtime;
 using System.Text;
 using System.Text.RegularExpressions;
 using Traktor.Core.Domain;
@@ -12,22 +13,20 @@ namespace Traktor.Core.Services.Indexer
 {
     public class EzTvIndexer : IndexerBase, IIndexer
     {
-        public string Name => "EZTV";
-        public Type[] SupportedMediaTypes => new Type[] { typeof(Episode) };
-
-        public string[] SpecializedGenres => null;
-
-        public int Priority => 50;
-
-        public string ApiUrl { get; set; } = "https://eztv.re/api";
+        public static IndexerSettings DefaultSettings => new IndexerBase.IndexerSettings
+        {
+            ApiUrl = "https://eztv.re/api",
+            Enabled = true,
+            Priority = 50
+        };
 
         private RestClient client;
-        public EzTvIndexer()
+        public EzTvIndexer(IndexerSettings settings) : base("EZTV", new[] {typeof(Episode)}, null, settings ?? DefaultSettings)
         {
             client = new RestClient(this.ApiUrl);
         }
 
-        public List<IndexerResult> FindResultsFor(Media media)
+        public new List<IndexerResult> FindResultsFor(Media media)
         {
             if (media is Episode episode && !string.IsNullOrEmpty(episode.ShowId?.IMDB))
             {
@@ -81,7 +80,8 @@ namespace Traktor.Core.Services.Indexer
                 SizeBytes = torrent.size_bytes.ToLong() ?? 0,
                 Season = torrent.season.ToInt(),
                 Episode = torrent.episode != "0" ? torrent.episode.ToInt() : null,
-                IMDB = $"tt{torrent.imdb_id}"
+                IMDB = $"tt{torrent.imdb_id}",
+                Source = this.Name
             };
 
             var numbering = GetNumbering(torrent.title);

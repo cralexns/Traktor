@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Microsoft.EntityFrameworkCore.Query.Internal;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Globalization;
@@ -135,6 +136,8 @@ namespace Traktor.Core.Services.Indexer
         }
         public string Magnet { get; private set; }
 
+        public Func<byte[]> Data { get; set; }
+
         public string Name { get; private set; }
 
         public int Seeds { get; private set; }
@@ -195,7 +198,7 @@ namespace Traktor.Core.Services.Indexer
             REPACK
         }
 
-        public IIndexer Source { get; set; }
+        public string Source { get; set; }
 
         public IndexerResult CloneAs(int number)
         {

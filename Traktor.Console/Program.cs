@@ -343,7 +343,7 @@ namespace ConsoleApp2
                     Log.Information($"[Scouter] {media} = {scoutResult.Status}");
                     foreach (var magnet in scoutResult.Results)
                     {
-                        Log.Debug($" - {magnet.Title}");
+                        Log.Debug($" - {magnet.Title} ({magnet.Source})");
                     }
                 },
                 downloadInfo =>

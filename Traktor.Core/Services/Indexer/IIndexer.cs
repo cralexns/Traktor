@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Text;
 using Traktor.Core.Domain;
+using static Traktor.Core.Services.Indexer.IndexerBase;
 
 namespace Traktor.Core.Services.Indexer
 {
@@ -13,8 +14,6 @@ namespace Traktor.Core.Services.Indexer
         string[] SpecializedGenres { get; }
 
         int Priority { get; }
-
-        
 
         (int? Season, int? Episode, int? Range) GetNumbering(string title);
         IndexerResult.VideoQualityLevel GetQualityLevel(string title);

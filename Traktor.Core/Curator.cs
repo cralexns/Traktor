@@ -51,6 +51,12 @@ namespace Traktor.Core
                 },
                 Scout = new Scouter.ScouterSettings
                 {
+                    Indexers = new Dictionary<string, IndexerBase.IndexerSettings>
+                    {
+                        {"RarbgIndexer", RarbgIndexer.DefaultSettings },
+                        {"EzTvIndexer", EzTvIndexer.DefaultSettings },
+                        {"JackettIndexer", JackettIndexer.DefaultSettings }
+                    },
                     Requirements = new[] 
                     { 
                         new Scouter.RequirementConfig
@@ -616,6 +622,7 @@ namespace Traktor.Core
                     4. Add support to Nyaa Indexer for seasonal anime numbering system. (SAO uses [Show Name - Season Name - Episode XX])
                         - Support multiple season torrents, fx.  "[anime4life.] Sword Art Online S1,S2+Extra Edition (BDRip 1080p AC3) Dual Audio"
                     ?. Implement auto update - could use https://github.com/Tyrrrz/Onova
+                    - Add option to web UI to provide magnet uri manually. :)
                  */
 
                 this.Library.Save();

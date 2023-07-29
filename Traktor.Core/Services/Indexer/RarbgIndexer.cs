@@ -13,8 +13,15 @@ using RestSharp.Serializers.NewtonsoftJson;
 
 namespace Traktor.Core.Services.Indexer
 {
-    public class RarbgIndexer : IndexerBase, IIndexer
+    public class RarbgIndexer : IndexerBase
     {
+        public static IndexerSettings DefaultSettings => new IndexerBase.IndexerSettings
+        {
+            ApiUrl = "https://torrentapi.org/pubapi_v2.php",
+            Enabled = false,
+            Priority = 100
+        };
+
         public class RarBgTokenException : IndexerException
         {
             public RarBgTokenException() : base(null, "Failed to acquire token.")
@@ -22,8 +29,6 @@ namespace Traktor.Core.Services.Indexer
 
             }
         }
-
-        public string Name => "Rarbg";
         private enum QueryType
         {
             IMDB,
@@ -32,27 +37,20 @@ namespace Traktor.Core.Services.Indexer
             Text
         }
 
-        public string ApiUrl { get; set; } = "https://torrentapi.org/pubapi_v2.php";
         public string AppId { get; set; } = "Traktor";
         public static string Token { get; private set; }
-
-        public int Priority { get; set; } = 100;
-
-        public Type[] SupportedMediaTypes => new[] { typeof(Movie), typeof(Episode) };
-
-        public string[] SpecializedGenres => null;
 
         private TimeLimiter limiter = TimeLimiter.GetFromMaxCountByInterval(1, TimeSpan.FromSeconds(2.5));
 
         private RestClient client;
-        public RarbgIndexer()
+        public RarbgIndexer(IndexerSettings settings) : base("Rarbg", new[] { typeof(Movie), typeof(Episode) }, null, settings ?? DefaultSettings)
         {
             this.client = new RestClient(ApiUrl);
             this.client.UseNewtonsoftJson();
-            if (string.IsNullOrEmpty(Token))
-            {
-                GetToken();
-            }
+            //if (string.IsNullOrEmpty(Token))
+            //{
+            //    GetToken();
+            //}
         }
 
         private async Task<bool> GetToken()
@@ -218,7 +216,8 @@ namespace Traktor.Core.Services.Indexer
                 SizeBytes = torrent.size,
                 IMDB = torrent.episode_info.imdb,
                 Season = torrent.episode_info.seasonnum.ToInt(),
-                Episode = (torrent.episode_info.epnum != "1000000") ? torrent.episode_info.epnum.ToInt() : null
+                Episode = (torrent.episode_info.epnum != "1000000") ? torrent.episode_info.epnum.ToInt() : null,
+                Source = this.Name
             };
 
             var numbering = GetNumbering(torrent.title);
@@ -231,7 +230,7 @@ namespace Traktor.Core.Services.Indexer
             return (result, numbering.Range);
         }
 
-        public List<IndexerResult> FindResultsFor(Media media)
+        public new List<IndexerResult> FindResultsFor(Media media)
         {
             if (!SupportedMediaTypes.Contains(media.GetType()))
                 throw new InvalidOperationException("Unsupported media type");

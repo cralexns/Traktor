@@ -18,6 +18,8 @@ namespace Traktor.Core
             public RequirementConfig[] Requirements { get; set; }
 
             public RedirectConfig[] Redirects { get; set; }
+
+            public Dictionary<string, IndexerBase.IndexerSettings> Indexers { get; set; }
         }
 
         public class RequirementConfig
@@ -204,8 +206,30 @@ namespace Traktor.Core
         {
             this.Settings = settings;
 
-            this.Indexers = Assembly.GetExecutingAssembly().GetTypes().Where(x => typeof(IIndexer).IsAssignableFrom(x) && !x.IsInterface && !x.IsAbstract)
-                .Select(x => Activator.CreateInstance(x) as IIndexer).ToList();
+            //this.Indexers = Assembly.GetExecutingAssembly().GetTypes().Where(x => typeof(IIndexer).IsAssignableFrom(x) && !x.IsInterface && !x.IsAbstract)
+            //    .Select(x => Activator.CreateInstance(x) as IIndexer).ToList();
+            this.LoadIndexers(settings.Indexers);
+        }
+
+        private void LoadIndexers(Dictionary<string, IndexerBase.IndexerSettings> indexerSettings)
+        {
+            this.Indexers = new List<IIndexer>();
+            var availableIndexers = Assembly.GetExecutingAssembly().GetTypes().Where(x => typeof(IIndexer).IsAssignableFrom(x) && !x.IsInterface && !x.IsAbstract).ToList();
+            
+            foreach (var availableIndexer in availableIndexers)
+            {
+                var indexerSetting = indexerSettings.GetValueByKey(availableIndexer.Name);
+                if (indexerSetting == null)
+                {
+                    indexerSetting = availableIndexer.GetProperty("DefaultSettings", BindingFlags.Public | BindingFlags.Static).GetValue(null) as IndexerBase.IndexerSettings;
+                }
+
+                if (indexerSetting?.Enabled ?? false)
+                {
+                    var indexer = Activator.CreateInstance(availableIndexer, new[] {indexerSetting}) as IIndexer;
+                    this.Indexers.Add(indexer);
+                }
+            }
         }
 
         public void UpdateSettings(ScouterSettings settings)
@@ -231,6 +255,7 @@ namespace Traktor.Core
                 public bool IsFullSeason { get; set; }
                 public Uri Link { get; set; }
                 public int Score { get; set; }
+                public string Source { get; set; }
 
                 public Magnet(IndexerResult result, int score)
                 {
@@ -238,6 +263,7 @@ namespace Traktor.Core
                     this.IsFullSeason = result.IsFullSeason;
                     this.Link = new Uri(result.Magnet);
                     this.Score = score;
+                    this.Source = result.Source;
                 }
             }
 

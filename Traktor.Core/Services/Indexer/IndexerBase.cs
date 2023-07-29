@@ -1,13 +1,16 @@
-﻿using System;
+﻿using Newtonsoft.Json.Linq;
+using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.RegularExpressions;
+using Traktor.Core.Domain;
 using Traktor.Core.Extensions;
 
 namespace Traktor.Core.Services.Indexer
 {
-    public class IndexerBase
+    public abstract class IndexerBase : IIndexer
     {
         public class IndexerException : Exception
         {
@@ -17,6 +20,36 @@ namespace Traktor.Core.Services.Indexer
             {
                 this.Indexer = indexer;
             }
+        }
+
+        public class IndexerSettings
+        {
+            public string ApiUrl { get; set; }
+            public string ApiKey { get; set; }
+            public bool Enabled { get; set; }
+            public int Priority { get; set; }
+        }
+
+        public string Name { get; private set; }
+        public Type[] SupportedMediaTypes { get; private set; }
+
+        public string[] SpecializedGenres { get; private set; }
+
+        public int Priority { get; private set; }
+
+        public string ApiUrl { get; private set; }
+
+        public IndexerBase(string name, Type[] supportedMediaTypes, string[] specializedGenres, IndexerSettings settings)
+        {
+            this.Name = name;
+            this.SupportedMediaTypes = supportedMediaTypes;
+            this.SpecializedGenres = specializedGenres;
+
+            //if (settings.IndexerType != this.GetType())
+            //    throw new InvalidOperationException($"Wrong IndexerSettings supplied to indexer: settings type = {settings.IndexerType} vs indexer type = {this.GetType()}");
+
+            this.ApiUrl = settings.ApiUrl;
+            this.Priority = settings.Priority;
         }
 
         public virtual Regex QualityRegex { get; } = new Regex(@"(?:\.|\s)(?<quality>[0-9]{3,4}p)(?:\.|\s|$)", RegexOptions.ExplicitCapture);
@@ -118,6 +151,11 @@ namespace Traktor.Core.Services.Indexer
             if (!name.Contains(' ') && name.Contains('.'))
                 return name.Replace('.', ' ').Trim();
             return name.Trim();
+        }
+
+        public List<IndexerResult> FindResultsFor(Media media)
+        {
+            throw new NotImplementedException();
         }
     }
 }
