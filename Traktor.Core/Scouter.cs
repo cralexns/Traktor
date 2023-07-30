@@ -12,6 +12,7 @@ using System.Text;
 using Traktor.Core.Domain;
 using Traktor.Core.Extensions;
 using Traktor.Core.Services.Indexer;
+using Microsoft.EntityFrameworkCore.Internal;
 
 namespace Traktor.Core
 {
@@ -271,10 +272,28 @@ namespace Traktor.Core
                         _checked = true;
                         if (Link.Scheme.StartsWith("http"))
                         {
-                            byte[] torrentData = new WebClient().DownloadData(Link.ToString());
-                            if (Encoding.UTF8.GetString(torrentData, 0, 7) != "magnet:")
+                            try
                             {
-                                Link = new Uri(Encoding.UTF8.GetString(torrentData));
+                                var request = WebRequest.Create(Link) as HttpWebRequest;
+                                request.AllowAutoRedirect = false;
+                                var response = request.GetResponse() as HttpWebResponse;
+                                
+                                if (response.Headers.AllKeys.Contains("Location"))
+                                {
+                                    var redirect = response.Headers["location"];
+                                    if (redirect.StartsWith("magnet:"))
+                                    {
+                                        Link = new Uri(redirect);
+                                    }
+                                }
+                            }
+                            catch (WebException webEx)
+                            {
+                                var redirect = webEx.Response?.Headers["Location"];
+                                if (redirect.StartsWith("magnet:"))
+                                {
+                                    Link = new Uri(redirect);
+                                }
                             }
                         }
                     }

@@ -113,7 +113,7 @@ namespace Traktor.Core.Services.Indexer
             Curator.Debug("GetResultsForMovie()");
 
             if (!string.IsNullOrEmpty(movie.Title))
-                return SearchAll(movie.Title).Where(x=>x.Title.StartsWith(movie.Title));
+                return SearchAll(movie.Title).Where(x=>x.Title.StartsWith(movie.Title, StringComparison.OrdinalIgnoreCase));
 
             return null;
         }
@@ -123,7 +123,7 @@ namespace Traktor.Core.Services.Indexer
             Curator.Debug("GetResultsForEpisode()");
 
             if (!string.IsNullOrEmpty(episode.ShowTitle))
-                return SearchAll($"{episode.ShowTitle} S{episode.Season:00}E{episode.Number:00}")?.Where(x => x.Title.StartsWith(episode.ShowTitle) && x.Season == episode.Season && (x.Episode == episode.Number || x.IsFullSeason));
+                return SearchAll($"{episode.ShowTitle} S{episode.Season:00}E{episode.Number:00}")?.Where(x => x.Title.StartsWith(episode.ShowTitle, StringComparison.OrdinalIgnoreCase) && x.Season == episode.Season && (x.Episode == episode.Number || x.IsFullSeason));
 
             return null;
         }

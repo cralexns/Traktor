@@ -109,6 +109,7 @@ namespace Traktor.Core.Services.Downloader
                     return;
 
                 Torrent torrent = null;
+                MagnetLink magnetLink = null;
                 if (downloadUrl.Scheme.StartsWith("http"))
                 {
                     byte[] torrentData = new WebClient().DownloadData(downloadUrl.ToString());
@@ -121,11 +122,6 @@ namespace Traktor.Core.Services.Downloader
 
                         string torrentFileName = Path.Combine(this.CachePath, $"{torrent.Name}.torrent");
                         File.WriteAllBytes(torrentFileName, torrentData);
-
-                        if (torrent != null)
-                        {
-                            torrentManager = new PrioritizedTorrentManager(priority, torrent, Path.Combine(this.DownloadPath, torrent.Name), new TorrentSettings());
-                        }
                     }
                     else
                     {
@@ -135,13 +131,17 @@ namespace Traktor.Core.Services.Downloader
 
                 if (downloadUrl.Scheme == "magnet")
                 {
-                    var magnetLink = MagnetLink.FromUri(downloadUrl);
+                    magnetLink = MagnetLink.FromUri(downloadUrl);
                     torrent = GetTorrentFile(magnetLink);
+                }
 
-                    if (torrent == null)
-                    {
-                        torrentManager = new PrioritizedTorrentManager(priority, magnetLink, Path.Combine(this.DownloadPath, magnetLink.Name), new TorrentSettings(), Path.Combine(this.CachePath, $"{magnetLink.InfoHash.ToHex()}.torrent"));
-                    }
+                if (torrent != null)
+                {
+                    torrentManager = new PrioritizedTorrentManager(priority, torrent, Path.Combine(this.DownloadPath, torrent.Name), new TorrentSettings());
+                }
+                else
+                {
+                    torrentManager = new PrioritizedTorrentManager(priority, magnetLink, Path.Combine(this.DownloadPath, magnetLink.Name), new TorrentSettings(), Path.Combine(this.CachePath, $"{magnetLink.InfoHash.ToHex()}.torrent"));
                 }
 
                 //torrentManager = new PrioritizedTorrentManager(priority, magnetLink, Path.Combine(this.DownloadPath, magnetLink.Name), new TorrentSettings(), Path.Combine(this.CachePath, $"{magnetLink.InfoHash.ToHex()}.torrent"));

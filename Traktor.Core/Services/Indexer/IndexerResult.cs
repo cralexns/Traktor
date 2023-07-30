@@ -136,8 +136,6 @@ namespace Traktor.Core.Services.Indexer
         }
         public string Magnet { get; private set; }
 
-        public Func<byte[]> Data { get; set; }
-
         public string Name { get; private set; }
 
         public int Seeds { get; private set; }
