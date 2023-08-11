@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Runtime;
 using System.Text;
+using System.Text.RegularExpressions;
 using Traktor.Core.Domain;
 
 namespace Traktor.Core.Services.Indexer
@@ -102,7 +103,8 @@ namespace Traktor.Core.Services.Indexer
                 case Movie movie:
                     return GetResultsForMovie(movie)?.ToList();
                 case Episode episode:
-                    return GetResultsForEpisode(episode)?.ToList();
+                    var results = GetResultsForEpisode(episode)?.ToList();
+                    return results;
             }
 
             return null;
@@ -118,12 +120,24 @@ namespace Traktor.Core.Services.Indexer
             return null;
         }
 
+        private string Normalize(string s)
+        {
+            return Regex.Replace(s, "[^A-Za-z0-9]*", "");
+        }
+
         private IEnumerable<IndexerResult> GetResultsForEpisode(Episode episode)
         {
             Curator.Debug("GetResultsForEpisode()");
 
             if (!string.IsNullOrEmpty(episode.ShowTitle))
-                return SearchAll($"{episode.ShowTitle} S{episode.Season:00}E{episode.Number:00}")?.Where(x => x.Title.StartsWith(episode.ShowTitle, StringComparison.OrdinalIgnoreCase) && x.Season == episode.Season && (x.Episode == episode.Number || x.IsFullSeason));
+            {
+                var results = SearchAll($"{episode.ShowTitle} S{episode.Season:00}E{episode.Number:00}");
+                if (!results.Any() || results.Sum(x=>x.Seeds) < 100 || episode.Release < DateTime.Now.AddMonths(-6))
+                {
+                    results.ToList().AddRange(SearchAll($"{episode.ShowTitle} S{episode.Season:00}"));
+                }
+                return results.Where(x => Normalize(x.Name).Equals(Normalize(episode.ShowTitle), StringComparison.OrdinalIgnoreCase) && x.Season == episode.Season && (x.Episode == episode.Number || x.IsFullSeason));
+            }
 
             return null;
         }
