@@ -336,7 +336,7 @@ namespace Traktor.Core.Services.Downloader
 
             internal DownloadInfo(Uri magnetUri, TorrentManager torrentManager, int priority, TorrentState? state = null)
             {
-                if (MagnetLink.FromUri(magnetUri).InfoHash != torrentManager.InfoHash)
+                if (magnetUri.Scheme == "magnet" && MagnetLink.FromUri(magnetUri).InfoHash != torrentManager.InfoHash)
                     throw new InvalidOperationException("TorrentManager doesn't match Magnet");
 
                 MagnetUri = magnetUri;
