@@ -383,6 +383,12 @@ namespace Traktor.Core
             var results = GetIndexersForMedia(media).SelectMany(i=> GetIndexerResults(i, GetRedirectedMedia(media) ?? media).Select((r) => (Result: r, Evaluation: EvaluateResult(r, media, requirements), Indexer: i)))
                 .OrderByDescending(x=>x.Evaluation.Passed).ThenByDescending(x => x.Evaluation.Score).ThenByDescending(x => x.Indexer.Priority).ThenByDescending(x => (x.Result.Seeds * 10) + x.Result.Peers).ToList();
 
+            results.Where(x => string.IsNullOrEmpty(x.Result.Magnet)).ToList().ForEach(x =>
+            {
+                Curator.Debug($"Discarding result: {x} because Magnet/Link is null or empty. It's useless, fix the indexer!");
+                results.Remove(x);
+            });
+
             if (results.Any())
             {
                 return new ScoutResult(results.Select(x => (x.Result, x.Evaluation.Score))) { Status = results.Any(x => x.Evaluation.Passed) ? ScoutResult.State.Found : ScoutResult.State.BelowReqs };

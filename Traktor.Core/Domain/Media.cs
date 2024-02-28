@@ -150,6 +150,9 @@ namespace Traktor.Core.Domain
         [NotMapped]
         public IReadOnlyList<Scouter.ScoutResult.Magnet> Magnets { get; set; }
 
+        [NotMapped]
+        public List<Uri> BannedMagnets { get; set; } = new List<Uri>();
+
         public Uri Magnet { get; private set; }
 
         public string[] RelativePath { get; set; }
@@ -191,10 +194,22 @@ namespace Traktor.Core.Domain
 
             if (this.Magnet == null || forceSelect)
             {
-                var magnet = magnets.FirstOrDefault();
-                magnet.ConvertLink();
+                int skip = 0;
+                while (skip < magnets.Count)
+                {
+                    var magnet = magnets.Skip(skip).FirstOrDefault();
+                    magnet.ConvertLink();
 
-                this.SetMagnet(magnet.Link, forceSelect);
+                    skip++;
+                    if (!BannedMagnets.Contains(magnet.Link))
+                    {
+                        this.SetMagnet(magnet.Link, forceSelect);
+                        return;
+                    }
+                }
+
+                Curator.Debug($"Magnet selection ran out of viable magnets. Banned Magnet Count={BannedMagnets.Count} vs Magnet Count={magnets.Count} - clearing banned magnets.");
+                BannedMagnets.Clear();
             }
         }
 

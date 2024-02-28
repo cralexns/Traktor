@@ -217,5 +217,10 @@ namespace Traktor.Core.Services.Indexer
             else
                 return value.ToString();
         }
+
+        public override string ToString()
+        {
+            return $"[{this.GetType().Name}] {this.Title} ({this.Source})";
+        }
     }
 }

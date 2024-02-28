@@ -8,6 +8,7 @@ using System.Runtime;
 using System.Text;
 using System.Text.RegularExpressions;
 using Traktor.Core.Domain;
+using Traktor.Core.Extensions;
 
 namespace Traktor.Core.Services.Indexer
 {
@@ -112,7 +113,7 @@ namespace Traktor.Core.Services.Indexer
 
         private IEnumerable<IndexerResult> GetResultsForMovie(Movie movie)
         {
-            Curator.Debug("GetResultsForMovie()");
+            Curator.Debug("JackettIndexer.GetResultsForMovie()");
 
             if (!string.IsNullOrEmpty(movie.Title))
                 return SearchAll(movie.Title).Where(x=>x.Title.StartsWith(movie.Title, StringComparison.OrdinalIgnoreCase));
@@ -122,15 +123,16 @@ namespace Traktor.Core.Services.Indexer
 
         private string Normalize(string s)
         {
-            return Regex.Replace(s, "[^A-Za-z0-9]*", "");
+            return Regex.Replace(s.FoldToASCII(), "[^A-Za-z0-9]*", "");
         }
 
         private IEnumerable<IndexerResult> GetResultsForEpisode(Episode episode)
         {
-            Curator.Debug("GetResultsForEpisode()");
+            Curator.Debug("JackettIndexer.GetResultsForEpisode()");
 
             if (!string.IsNullOrEmpty(episode.ShowTitle))
             {
+                
                 var results = SearchAll($"{episode.ShowTitle} S{episode.Season:00}E{episode.Number:00}");
                 if (!results.Any() || results.Sum(x=>x.Seeds) < 100 || episode.Release < DateTime.Now.AddMonths(-6))
                 {
@@ -159,7 +161,7 @@ namespace Traktor.Core.Services.Indexer
 
         public IEnumerable<IndexerResult> SearchAll(string query)
         {
-            var request = new RestRequest("api/v2.0/indexers/all/results");
+            var request = new RestRequest("api/v2.0/indexers/!status:failing,test:passed/results");
             request.AddHeader("Accept", "application/json");
             request.AddParameter("apikey", this.apiKey);
             request.AddParameter("t", "search");
@@ -181,6 +183,11 @@ namespace Traktor.Core.Services.Indexer
                         }
                     }
                 }
+            }
+
+            if (!response.IsSuccessful)
+            {
+                throw new IndexerException(this, $"{response.ErrorMessage}");
             }
         }
 

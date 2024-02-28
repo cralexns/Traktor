@@ -826,7 +826,8 @@ namespace Traktor.Core
                 this.Downloader.Stop(media.Magnet, true, true);
                 media.SetMagnet(null, true);
 
-                this.ScoutAndStartDownloads(new List<Media> { media }, true, media.Magnet);
+                media.BannedMagnets.Add(media.Magnet);
+                this.ScoutAndStartDownloads(new List<Media> { media }, true);
             }
         }
 

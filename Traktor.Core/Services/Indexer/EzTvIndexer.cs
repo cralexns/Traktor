@@ -1,6 +1,7 @@
 ﻿using RestSharp;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Runtime;
@@ -42,8 +43,12 @@ namespace Traktor.Core.Services.Indexer
 
         private IEnumerable<IndexerResult> Search(string numericImdb)
         {
+            Curator.Debug("EzTvIndexer.Search()");
+
             var request = new RestRequest("get-torrents");
             request.AddParameter("imdb_id", numericImdb);
+
+            // Should probably report if the indexer no longer is reachable?
 
             var response = client.Execute<EzTvGetTorrentsResponse>(request);
             while (response?.IsSuccessful ?? false)
@@ -69,6 +74,11 @@ namespace Traktor.Core.Services.Indexer
                     response = client.Execute<EzTvGetTorrentsResponse>(request);
                 }
                 else response = null;
+            }
+
+            if (!(response?.IsSuccessful ?? true)) // response is set to null when paging.. funky, that's why a null here means success.
+            {
+                throw new IndexerException(this, $"{response.ErrorMessage}");
             }
         }
 
