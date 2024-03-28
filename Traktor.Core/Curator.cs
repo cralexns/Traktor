@@ -516,7 +516,7 @@ namespace Traktor.Core
                         case Scouter.ScoutResult.State.BelowReqs when ignoreRequirements.Contains(episode):
                             if (scoutResult.Status != Scouter.ScoutResult.State.NotFound)
                             {
-                                episode.AddMagnets(scoutResult.Results);
+                                episode.AddMagnets(scoutResult.Results, selectFullSeason:season.Count() > 1);
                             }
 
                             if (scoutResult.Status == Scouter.ScoutResult.State.NotFound || season.Count() == episode.TotalEpisodesInSeason || (episode.Magnets.FirstOrDefault(x => x.Link == episode.Magnet)?.IsFullSeason ?? false))

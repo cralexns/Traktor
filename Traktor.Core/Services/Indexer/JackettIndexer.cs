@@ -123,6 +123,7 @@ namespace Traktor.Core.Services.Indexer
 
         private string Normalize(string s)
         {
+            s = s.Replace("&", "and");
             return Regex.Replace(s.FoldToASCII(), "[^A-Za-z0-9]*", "");
         }
 
@@ -134,9 +135,9 @@ namespace Traktor.Core.Services.Indexer
             {
                 
                 var results = SearchAll($"{episode.ShowTitle} S{episode.Season:00}E{episode.Number:00}");
-                if (!results.Any() || results.Sum(x=>x.Seeds) < 100 || episode.Release < DateTime.Now.AddMonths(-6))
+                if (!results.Any() || results.Max(x=>x.Seeds) < 100 || episode.Release < DateTime.Now.AddMonths(-6))
                 {
-                    results.ToList().AddRange(SearchAll($"{episode.ShowTitle} S{episode.Season:00}"));
+                    results = results.Concat(SearchAll($"{episode.ShowTitle} S{episode.Season:00}"));
                 }
                 return results.Where(x => Normalize(x.Name).Equals(Normalize(episode.ShowTitle), StringComparison.OrdinalIgnoreCase) && x.Season == episode.Season && (x.Episode == episode.Number || x.IsFullSeason));
             }
